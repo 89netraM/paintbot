@@ -23,6 +23,8 @@
 		private bool _hasTournamentEnded;
 		private string _playerId;
 
+		protected GameSettings GameSettings { get; private set; }
+
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
 		{
 			_paintBotClient = paintBotClient;
@@ -70,7 +72,7 @@
 				PlayerRegistered playerRegistered => OnPlayerRegistered(playerRegistered, ct),
 				MapUpdated mapUpdated => OnMapUpdated(mapUpdated, ct),
 				GameLink gameLink => OnInfoEvent(gameLink),
-				GameStarting gameStarting => OnInfoEvent(gameStarting),
+				GameStarting gameStarting => OnGameStarting(gameStarting),
 				GameResult gameResult => OnInfoEvent(gameResult),
 				CharacterStunned characterStunned => OnInfoEvent(characterStunned),
 				HeartBeatResponse heartBeatResponse => OnHearBeatEvent(heartBeatResponse),
@@ -108,6 +110,12 @@
 					GameTick = mapUpdated.GameTick,
 					Direction = action.ToString().ToUpper()
 				}, ct);
+		}
+
+		private Task OnGameStarting(GameStarting gameStarting)
+		{
+			GameSettings = gameStarting.GameSettings;
+			return OnInfoEvent(gameStarting);
 		}
 
 		private Task OnInfoEvent(Response response)
