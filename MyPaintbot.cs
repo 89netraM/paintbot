@@ -13,12 +13,12 @@
 
 	public class MyPaintBot : StatePaintBot
 	{
-		private static readonly IReadOnlyDictionary<Action, (Action left, Action right)> sideways = new Dictionary<Action, (Action, Action)>
+		private static readonly IReadOnlyDictionary<Action, (Action left, Action right, Action back)> sideways = new Dictionary<Action, (Action, Action, Action)>
 		{
-			{ Action.Left, (Action.Down, Action.Up) },
-			{ Action.Right, (Action.Up, Action.Down) },
-			{ Action.Up, (Action.Left, Action.Right) },
-			{ Action.Down, (Action.Right, Action.Left) },
+			{ Action.Left, (Action.Down, Action.Up, Action.Right) },
+			{ Action.Right, (Action.Up, Action.Down, Action.Left) },
+			{ Action.Up, (Action.Left, Action.Right, Action.Down) },
+			{ Action.Down, (Action.Right, Action.Left, Action.Up) },
 		};
 
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
@@ -103,13 +103,22 @@
 					{
 						yield return sideways[direction].left;
 					}
-					else if (MapUtils.CanPlayerPerformAction(PlayerId, direction))
+					else if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(direction)) &&
+						MapUtils.CanPlayerPerformAction(PlayerId, direction))
 					{
 						yield return direction;
 					}
-					else
+					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
 					{
 						yield return sideways[direction].right;
+					}
+					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].back))
+					{
+						yield return sideways[direction].back;
+					}
+					else
+					{
+						yield return Action.Stay;
 					}
 				}
 			}
