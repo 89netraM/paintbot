@@ -113,6 +113,16 @@
 					{
 						yield return direction;
 					}
+					else if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(sideways[direction].right)) &&
+						MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
+					{
+						yield return sideways[direction].right;
+					}
+					else if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(sideways[direction].back)) &&
+						MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].back))
+					{
+						yield return sideways[direction].back;
+					}
 					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
 					{
 						yield return sideways[direction].right;
