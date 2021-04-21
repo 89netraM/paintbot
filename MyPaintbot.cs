@@ -33,11 +33,13 @@
 		public override string Name { get; }
 
 		protected override IEnumerable<Action> GetActionSequence() =>
-			GetPreliminaryActionSequence().SelectMany(AvoidOthers);
+			GetPreliminaryActionSequence()
+				.SelectMany(AvoidOthers)
+				.SelectMany(UsePowerUp);
 
 		private IEnumerable<Action> AvoidOthers(Action proposedAction)
 		{
-			if ((Action.Left | Action.Right | Action.Up | Action.Down).HasFlag(proposedAction))
+			if (IsDirection(proposedAction))
 			{
 				MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
 				if (CanAnyOtherGoTo(player.MoveIn(proposedAction)))
@@ -71,6 +73,22 @@
 			{
 				yield return proposedAction;
 			}
+		}
+
+		private IEnumerable<Action> UsePowerUp(Action proposedAction)
+		{
+			if (MapUtils.GetCharacterInfoFor(PlayerId).CarryingPowerUp)
+			{
+				int durationInTicks = GameSettings.GameDurationInSeconds * 1000 / GameSettings.TimeInMsPerTick;
+				if (Map.WorldTick == durationInTicks - 2 || // Last tick
+					IsAnyInRangeOfExplosion() ||
+					WillTakePowerUp(proposedAction))
+				{
+					yield return Action.Explode;
+				}
+			}
+
+			yield return proposedAction;
 		}
 
 		private IEnumerable<Action> GetPreliminaryActionSequence()
@@ -178,5 +196,21 @@
 				MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) == 1
 			);
 		}
+
+		private bool IsDirection(Action action) =>
+			(Action.Left | Action.Right | Action.Up | Action.Down).HasFlag(action);
+
+		private bool IsAnyInRangeOfExplosion()
+		{
+			MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
+			return Map.CharacterInfos.Any(ci =>
+				ci.Id != PlayerId &&
+				player.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <= GameSettings.ExplosionRange
+			);
+		}
+
+		private bool WillTakePowerUp(Action action) =>
+			IsDirection(action) &&
+			MapUtils.GetTileAt(MapUtils.GetCoordinateOf(PlayerId).MoveIn(action)) == Tile.PowerUp;
 	}
 }
