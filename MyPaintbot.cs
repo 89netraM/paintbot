@@ -13,12 +13,12 @@
 
 	public class MyPaintBot : StatePaintBot
 	{
-		private static readonly IReadOnlyDictionary<Action, Action[]> sideways = new Dictionary<Action, Action[]>
+		private static readonly IReadOnlyDictionary<Action, (Action left, Action right)> sideways = new Dictionary<Action, (Action, Action)>
 		{
-			{ Action.Left, new[] { Action.Up, Action.Down } },
-			{ Action.Right, new[] { Action.Down, Action.Up } },
-			{ Action.Up, new[] { Action.Right, Action.Left } },
-			{ Action.Down, new[] { Action.Left, Action.Right } },
+			{ Action.Left, (Action.Down, Action.Up) },
+			{ Action.Right, (Action.Up, Action.Down) },
+			{ Action.Up, (Action.Left, Action.Right) },
+			{ Action.Down, (Action.Right, Action.Left) },
 		};
 
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
@@ -44,7 +44,14 @@
 				}
 				else
 				{
-					yield return sideways[direction].FirstOrDefault(a => MapUtils.CanPlayerPerformAction(PlayerId, a));
+					if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].left))
+					{
+						yield return sideways[direction].left;
+					}
+					else
+					{
+						yield return sideways[direction].right;
+					}
 				}
 			}
 			// Go Around
@@ -53,13 +60,20 @@
 				direction = NextDirection(direction);
 				while (DistanceToEdge(direction) > 0)
 				{
-					if (MapUtils.CanPlayerPerformAction(PlayerId, direction))
+					CharacterInfo ci = MapUtils.GetCharacterInfoFor(PlayerId);
+					MapCoordinate[] owned = MapUtils.GetCoordinatesFrom(ci.ColouredPositions);
+					if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(sideways[direction].left))
+						&& MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].left))
+					{
+						yield return sideways[direction].left;
+					}
+					else if (MapUtils.CanPlayerPerformAction(PlayerId, direction))
 					{
 						yield return direction;
 					}
 					else
 					{
-						yield return sideways[direction][0];
+						yield return sideways[direction].right;
 					}
 				}
 			}
@@ -94,6 +108,6 @@
 			}
 		}
 
-		private Action NextDirection(Action direction) => sideways[direction][0];
+		private Action NextDirection(Action direction) => sideways[direction].right;
 	}
 }
