@@ -32,7 +32,43 @@
 
 		public override string Name { get; }
 
-		protected override IEnumerable<Action> GetActionSequence()
+		protected override IEnumerable<Action> GetActionSequence() =>
+			GetPreliminaryActionSequence().SelectMany(AvoidOthers);
+
+		private IEnumerable<Action> AvoidOthers(Action proposedAction)
+		{
+			if ((Action.Left | Action.Right | Action.Up | Action.Down).HasFlag(proposedAction))
+			{
+				MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
+				if (CanAnyOtherGoTo(player.MoveIn(proposedAction)))
+				{
+					if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[proposedAction].right) &&
+						!CanAnyOtherGoTo(player.MoveIn(sideways[proposedAction].right)))
+					{
+						yield return sideways[proposedAction].right;
+					}
+					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[proposedAction].left) &&
+						!CanAnyOtherGoTo(player.MoveIn(sideways[proposedAction].left)))
+					{
+						yield return sideways[proposedAction].left;
+					}
+					else
+					{
+						yield return Action.Stay;
+					}
+				}
+				else
+				{
+					yield return proposedAction;
+				}
+			}
+			else
+			{
+				yield return proposedAction;
+			}
+		}
+
+		private IEnumerable<Action> GetPreliminaryActionSequence()
 		{
 			// Find and go to closest edge
 			Action direction = DirectionOfClosestEdge();
@@ -109,5 +145,13 @@
 		}
 
 		private Action NextDirection(Action direction) => sideways[direction].right;
+
+		private bool CanAnyOtherGoTo(MapCoordinate coordinate)
+		{
+			return Map.CharacterInfos.Any(ci =>
+				ci.Id != PlayerId &&
+				MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) == 1
+			);
+		}
 	}
 }
