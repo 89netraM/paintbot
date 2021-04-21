@@ -164,6 +164,7 @@
 		{
 			return Map.CharacterInfos.Any(ci =>
 				ci.Id != PlayerId &&
+				ci.StunnedForGameTicks == 0 &&
 				MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) == 1
 			);
 		}
