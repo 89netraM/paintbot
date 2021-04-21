@@ -80,13 +80,13 @@
 				}
 				else
 				{
-					if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].left))
+					if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
 					{
-						yield return sideways[direction].left;
+						yield return sideways[direction].right;
 					}
 					else
 					{
-						yield return sideways[direction].right;
+						yield return sideways[direction].left;
 					}
 				}
 			}
