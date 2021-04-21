@@ -9,47 +9,17 @@
 	using Messaging.Request.HeartBeat;
 	using Messaging.Response;
 	using Serilog;
+	using Exception = System.Exception;
 
 	public class MyPaintBot : StatePaintBot
 	{
-		public int? DistanceToEnemy { get; private set; } = null;
-		public int IsLosingEnemy { get; private set; } = 0;
-
-		private long closestEnemyPathCache = -1;
-		private Path closestEnemyPath = null;
-		public Path ClosestEnemyPath
+		private static readonly IReadOnlyDictionary<Action, Action[]> sideways = new Dictionary<Action, Action[]>
 		{
-			get
-			{
-				if (closestEnemyPathCache != Map.WorldTick)
-				{
-					closestEnemyPath = Pathfinder.FindPath(
-						this,
-						c => EnemyCoordinates.Any(ec => c.GetManhattanDistanceTo(ec) < GameSettings.ExplosionRange)
-					);
-					closestEnemyPathCache = Map.WorldTick;
-				}
-				return closestEnemyPath;
-			}
-		}
-
-		private long closestPowerUpPathCache = -1;
-		private Path closestPowerUpPath = null;
-		public Path ClosestPowerUpPath
-		{
-			get
-			{
-				if (closestPowerUpPathCache != Map.WorldTick)
-				{
-					closestPowerUpPath = Pathfinder.FindPath(
-						this,
-						c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))
-					);
-					closestPowerUpPathCache = Map.WorldTick;
-				}
-				return closestPowerUpPath;
-			}
-		}
+			{ Action.Left, new[] { Action.Up, Action.Down } },
+			{ Action.Right, new[] { Action.Down, Action.Up } },
+			{ Action.Up, new[] { Action.Right, Action.Left } },
+			{ Action.Down, new[] { Action.Left, Action.Right } },
+		};
 
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, hearBeatSender, logger)
@@ -64,76 +34,66 @@
 
 		protected override IEnumerable<Action> GetActionSequence()
 		{
-			while (true)
+			// Find and go to closest edge
+			Action direction = DirectionOfClosestEdge();
+			while (DistanceToEdge(direction) > 0)
 			{
-				if (PlayerInfo.CarryingPowerUp)
+				if (MapUtils.CanPlayerPerformAction(PlayerId, direction))
 				{
-					if (ShouldExplode())
-					{
-						yield return Action.Explode;
-						DistanceToEnemy = null;
-						IsLosingEnemy = 0;
-						continue;
-					}
-					else
-					{
-						Path enemyPath = ClosestEnemyPath;
-						if (enemyPath is not null)
-						{
-							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
-							{
-								IsLosingEnemy++;
-							}
-							else
-							{
-								IsLosingEnemy = 0;
-							}
-							DistanceToEnemy = enemyPath.Length;
-							yield return enemyPath.FirstStep;
-							continue;
-						}
-					}
-				}
-
-				Path powerUpPath = ClosestPowerUpPath;
-				if (powerUpPath is not null)
-				{
-					yield return powerUpPath.FirstStep;
+					yield return direction;
 				}
 				else
 				{
-					yield return GetRandomDirection();
+					yield return sideways[direction].FirstOrDefault(a => MapUtils.CanPlayerPerformAction(PlayerId, a));
+				}
+			}
+			// Go Around
+			while (true)
+			{
+				direction = NextDirection(direction);
+				while (DistanceToEdge(direction) > 0)
+				{
+					if (MapUtils.CanPlayerPerformAction(PlayerId, direction))
+					{
+						yield return direction;
+					}
+					else
+					{
+						yield return sideways[direction][0];
+					}
 				}
 			}
 		}
 
-		private bool ShouldExplode() =>
-			Map.WorldTick == TotalGameTicks - 2 ||
-			(IsLosingEnemy >= 10 &&
-				PointsForUseOfPowerUp() >= (GameSettings.ExplosionRange + 1.0) * (GameSettings.ExplosionRange * 0.5) * 4 / 2
-			) ||
-			ClosestPowerUpPath?.Length <= 2 ||
-			Map.CharacterInfos.Any(ci =>
-				ci.Id != PlayerId &&
-				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) < GameSettings.ExplosionRange
-			);
-
-		private Action GetRandomDirection()
+		private Action DirectionOfClosestEdge()
 		{
-			// Go towards the closest coordinate not coloured by this player
-			Path path = Pathfinder.FindPath(
-				this,
-				c => !PlayerColouredCoordinates.Contains(c) &&
-					CountCloseNonPlayerColoured(c, 1) >= 2
-			);
-			if (path is not null)
+			MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
+			return new (int dist, Action dir)[] {
+				(player.X, Action.Left),
+				(Map.Width - 1 - player.X, Action.Right),
+				(player.Y, Action.Up),
+				(Map.Height - 1 - player.Y, Action.Down)
+			}.Aggregate((m, c) => c.dist < m.dist ? c : m).dir;
+		}
+
+		private int DistanceToEdge(Action direction)
+		{
+			MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
+			switch (direction)
 			{
-				return path.FirstStep;
-			}
-			else
-			{
-				return Action.Stay;
+				case Action.Left:
+					return player.X;
+				case Action.Right:
+					return Map.Width - 1 - player.X;
+				case Action.Up:
+					return player.Y;
+				case Action.Down:
+					return Map.Height - 1 - player.Y;
+				default:
+					throw new Exception();
 			}
 		}
+
+		private Action NextDirection(Action direction) => sideways[direction][0];
 	}
 }
