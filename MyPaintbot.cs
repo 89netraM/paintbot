@@ -52,6 +52,11 @@
 					{
 						yield return sideways[proposedAction].left;
 					}
+					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[proposedAction].back) &&
+						!CanAnyOtherGoTo(player.MoveIn(sideways[proposedAction].back)))
+					{
+						yield return sideways[proposedAction].back;
+					}
 					else
 					{
 						yield return Action.Stay;
