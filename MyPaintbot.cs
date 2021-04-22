@@ -97,20 +97,28 @@
 			Action direction = DirectionOfClosestEdge();
 			while (DistanceToEdge(direction) > 0)
 			{
-				if (MapUtils.CanPlayerPerformAction(PlayerId, direction))
+				CharacterInfo ci = MapUtils.GetCharacterInfoFor(PlayerId);
+				MapCoordinate[] owned = MapUtils.GetCoordinatesFrom(ci.ColouredPositions);
+				if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(direction)) &&
+					MapUtils.CanPlayerPerformAction(PlayerId, direction))
 				{
 					yield return direction;
 				}
+				else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
+				{
+					yield return sideways[direction].right;
+				}
+				else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].left))
+				{
+					yield return sideways[direction].left;
+				}
+				else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].back))
+				{
+					yield return sideways[direction].back;
+				}
 				else
 				{
-					if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
-					{
-						yield return sideways[direction].right;
-					}
-					else
-					{
-						yield return sideways[direction].left;
-					}
+					yield return Action.Stay;
 				}
 			}
 			// Go Around
