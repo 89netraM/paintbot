@@ -94,8 +94,13 @@
 				{
 					validActions.Add(Action.Down);
 				}
+				IList<Action> preferredActions = validActions.Where(a => !PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(a))).ToList();
 
-				if (validActions.Count > 0)
+				if (preferredActions.Count > 0)
+				{
+					return preferredActions[random.Next(preferredActions.Count)];
+				}
+				else if (validActions.Count > 0)
 				{
 					return validActions[random.Next(validActions.Count)];
 				}
