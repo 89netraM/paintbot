@@ -52,6 +52,7 @@
 		}
 
 		private bool ShouldExplode() =>
+			Map.WorldTick == TotalGameTicks - 2 ||
 			Map.CharacterInfos.Any(ci =>
 				ci.Id != PlayerId &&
 				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <= GameSettings.ExplosionRange
