@@ -41,21 +41,20 @@
 		{
 			if (IsDirection(proposedAction))
 			{
-				MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
-				if (CanAnyOtherGoTo(player.MoveIn(proposedAction)))
+				if (CanAnyOtherGoTo(PlayerCoordinate.MoveIn(proposedAction)))
 				{
 					if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[proposedAction].right) &&
-						!CanAnyOtherGoTo(player.MoveIn(sideways[proposedAction].right)))
+						!CanAnyOtherGoTo(PlayerCoordinate.MoveIn(sideways[proposedAction].right)))
 					{
 						yield return sideways[proposedAction].right;
 					}
 					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[proposedAction].left) &&
-						!CanAnyOtherGoTo(player.MoveIn(sideways[proposedAction].left)))
+						!CanAnyOtherGoTo(PlayerCoordinate.MoveIn(sideways[proposedAction].left)))
 					{
 						yield return sideways[proposedAction].left;
 					}
 					else if (MapUtils.CanPlayerPerformAction(PlayerId, sideways[proposedAction].back) &&
-						!CanAnyOtherGoTo(player.MoveIn(sideways[proposedAction].back)))
+						!CanAnyOtherGoTo(PlayerCoordinate.MoveIn(sideways[proposedAction].back)))
 					{
 						yield return sideways[proposedAction].back;
 					}
@@ -77,7 +76,7 @@
 
 		private IEnumerable<Action> UsePowerUp(Action proposedAction)
 		{
-			if (MapUtils.GetCharacterInfoFor(PlayerId).CarryingPowerUp)
+			if (PlayerInfo.CarryingPowerUp)
 			{
 				int durationInTicks = GameSettings.GameDurationInSeconds * 1000 / GameSettings.TimeInMsPerTick;
 				if (Map.WorldTick == durationInTicks - 2 || // Last tick
@@ -97,9 +96,7 @@
 			Action direction = DirectionOfClosestEdge();
 			while (DistanceToEdge(direction) > 0)
 			{
-				CharacterInfo ci = MapUtils.GetCharacterInfoFor(PlayerId);
-				MapCoordinate[] owned = MapUtils.GetCoordinatesFrom(ci.ColouredPositions);
-				if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(direction)) &&
+				if (!PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(direction)) &&
 					MapUtils.CanPlayerPerformAction(PlayerId, direction))
 				{
 					yield return direction;
@@ -127,24 +124,22 @@
 				direction = NextDirection(direction);
 				while (DistanceToEdge(direction) > 0)
 				{
-					CharacterInfo ci = MapUtils.GetCharacterInfoFor(PlayerId);
-					MapCoordinate[] owned = MapUtils.GetCoordinatesFrom(ci.ColouredPositions);
-					if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(sideways[direction].left))
+					if (!PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(sideways[direction].left))
 						&& MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].left))
 					{
 						yield return sideways[direction].left;
 					}
-					else if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(direction)) &&
+					else if (!PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(direction)) &&
 						MapUtils.CanPlayerPerformAction(PlayerId, direction))
 					{
 						yield return direction;
 					}
-					else if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(sideways[direction].right)) &&
+					else if (!PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(sideways[direction].right)) &&
 						MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].right))
 					{
 						yield return sideways[direction].right;
 					}
-					else if (!owned.Contains(MapUtils.GetCoordinateOf(PlayerId).MoveIn(sideways[direction].back)) &&
+					else if (!PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(sideways[direction].back)) &&
 						MapUtils.CanPlayerPerformAction(PlayerId, sideways[direction].back))
 					{
 						yield return sideways[direction].back;
@@ -167,28 +162,26 @@
 
 		private Action DirectionOfClosestEdge()
 		{
-			MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
 			return new (int dist, Action dir)[] {
-				(player.X, Action.Left),
-				(Map.Width - 1 - player.X, Action.Right),
-				(player.Y, Action.Up),
-				(Map.Height - 1 - player.Y, Action.Down)
+				(PlayerCoordinate.X, Action.Left),
+				(Map.Width - 1 - PlayerCoordinate.X, Action.Right),
+				(PlayerCoordinate.Y, Action.Up),
+				(Map.Height - 1 - PlayerCoordinate.Y, Action.Down)
 			}.Aggregate((m, c) => c.dist < m.dist ? c : m).dir;
 		}
 
 		private int DistanceToEdge(Action direction)
 		{
-			MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
 			switch (direction)
 			{
 				case Action.Left:
-					return player.X;
+					return PlayerCoordinate.X;
 				case Action.Right:
-					return Map.Width - 1 - player.X;
+					return Map.Width - 1 - PlayerCoordinate.X;
 				case Action.Up:
-					return player.Y;
+					return PlayerCoordinate.Y;
 				case Action.Down:
-					return Map.Height - 1 - player.Y;
+					return Map.Height - 1 - PlayerCoordinate.Y;
 				default:
 					throw new Exception();
 			}
@@ -210,15 +203,14 @@
 
 		private bool IsAnyInRangeOfExplosion()
 		{
-			MapCoordinate player = MapUtils.GetCoordinateOf(PlayerId);
 			return Map.CharacterInfos.Any(ci =>
 				ci.Id != PlayerId &&
-				player.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <= GameSettings.ExplosionRange
+				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <= GameSettings.ExplosionRange
 			);
 		}
 
 		private bool WillTakePowerUp(Action action) =>
 			IsDirection(action) &&
-			MapUtils.GetTileAt(MapUtils.GetCoordinateOf(PlayerId).MoveIn(action)) == Tile.PowerUp;
+			MapUtils.GetTileAt(PlayerCoordinate.MoveIn(action)) == Tile.PowerUp;
 	}
 }
