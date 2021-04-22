@@ -106,8 +106,43 @@
 				}
 				else
 				{
-					return Action.Stay;
+					return GetRandomDirection();
 				}
+			}
+			else
+			{
+				return GetRandomDirection();
+			}
+		}
+
+		private Action GetRandomDirection()
+		{
+			IList<Action> validActions = new List<Action>();
+			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Left))
+			{
+				validActions.Add(Action.Left);
+			}
+			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Right))
+			{
+				validActions.Add(Action.Right);
+			}
+			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Up))
+			{
+				validActions.Add(Action.Up);
+			}
+			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Down))
+			{
+				validActions.Add(Action.Down);
+			}
+			IList<Action> preferredActions = validActions.Where(a => !PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(a))).ToList();
+
+			if (preferredActions.Count > 0)
+			{
+				return preferredActions[random.Next(preferredActions.Count)];
+			}
+			else if (validActions.Count > 0)
+			{
+				return validActions[random.Next(validActions.Count)];
 			}
 			else
 			{
