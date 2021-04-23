@@ -40,17 +40,24 @@
 					}
 					else
 					{
-						MapCoordinate closestEnemy = FindClosestEnemy();
-						if (closestEnemy is not null)
+						Action[] enemyPath = ShortestPathToAnyEnemy();
+						if (enemyPath is not null)
 						{
-							yield return GetDirection(c => closestEnemy.GetManhattanDistanceTo(c) <= GameSettings.ExplosionRange);
+							yield return enemyPath[0];
 							continue;
 						}
 					}
 				}
 
-				MapCoordinate closestPowerUp = FindClosestPowerUp();
-				yield return GetDirection(closestPowerUp);
+				Action[] powerUpPath = ShortestPathToAnyPowerUp();
+				if (powerUpPath is not null)
+				{
+					yield return powerUpPath[0];
+				}
+				else
+				{
+					yield return GetRandomDirection();
+				}
 			}
 		}
 
@@ -61,16 +68,20 @@
 				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <= GameSettings.ExplosionRange
 			);
 
-		private MapCoordinate FindClosestEnemy() =>
+		private Action[] ShortestPathToAnyEnemy() =>
 			Map.CharacterInfos
 				.Where(ci => ci.Id != PlayerId)
 				.Select(ci => MapUtils.GetCoordinateFrom(ci.Position))
-				.OrderBy(c => PlayerCoordinate.GetManhattanDistanceTo(c))
+				.Select(c => Pathfinder.FindPath(this, ct => c.GetManhattanDistanceTo(ct) <= GameSettings.ExplosionRange)?.ToArray())
+				.OfType<Action[]>()
+				.OrderBy(p => p.Length)
 				.FirstOrDefault();
-		private MapCoordinate FindClosestPowerUp() =>
+		private Action[] ShortestPathToAnyPowerUp() =>
 			Map.PowerUpPositions
 				.Select(MapUtils.GetCoordinateFrom)
-				.OrderBy(c => PlayerCoordinate.GetManhattanDistanceTo(c))
+				.Select(c => Pathfinder.FindPath(this, c.Equals)?.ToArray())
+				.OfType<Action[]>()
+				.OrderBy(p => p.Length)
 				.FirstOrDefault();
 
 		private Action GetDirection(MapCoordinate target) =>
