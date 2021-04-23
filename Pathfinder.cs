@@ -29,16 +29,14 @@ namespace PaintBot
 				foreach (Action direction in directions.OrderBy(_ => paintBot.Random.NextDouble()))
 				{
 					MapCoordinate to = from.MoveIn(direction);
-					if (!directionTo.ContainsKey(to) && paintBot.MapUtils.IsMovementPossibleTo(to))
+					if (!directionTo.ContainsKey(to) &&
+						paintBot.MapUtils.IsMovementPossibleTo(to) &&
+						!IsTooCloseToOther(paintBot, to))
 					{
 						float cost = 1.0f;
 						if (paintBot.PlayerColouredCoordinates.Contains(to))
 						{
 							cost += 0.25f;
-						}
-						if (CanAnyOtherGoTo(paintBot, to))
-						{
-							cost += 2.25f;
 						}
 						directionTo.Add(to, direction);
 						if (condition.Invoke(to))
@@ -53,12 +51,13 @@ namespace PaintBot
 			return null;
 		}
 
-		private static bool CanAnyOtherGoTo(MyPaintBot paintBot, MapCoordinate coordinate)
+		private static bool IsTooCloseToOther(MyPaintBot paintBot, MapCoordinate coordinate)
 		{
 			return paintBot.Map.CharacterInfos.Any(ci =>
 				ci.Id != paintBot.PlayerId &&
 				ci.StunnedForGameTicks == 0 &&
-				paintBot.MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) == 1
+				paintBot.MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) <=
+					(ci.CarryingPowerUp ? paintBot.GameSettings.ExplosionRange : 1)
 			);
 		}
 

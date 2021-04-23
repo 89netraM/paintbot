@@ -26,7 +26,7 @@
 		private string _playerId;
 		private string gameUrl;
 
-		protected GameSettings GameSettings { get; private set; }
+		public GameSettings GameSettings { get; private set; }
 
 
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
