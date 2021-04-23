@@ -12,7 +12,7 @@
 
 	public class MyPaintBot : StatePaintBot
 	{
-		private readonly System.Random random;
+		public readonly System.Random Random;
 
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, hearBeatSender, logger)
@@ -20,7 +20,7 @@
 			GameMode = paintBotConfig.GameMode;
 			Name = paintBotConfig.Name ?? "My c# bot";
 
-			random = new System.Random();
+			Random = new System.Random();
 		}
 
 		public override GameMode GameMode { get; }
@@ -40,7 +40,7 @@
 					else
 					{
 						MapCoordinate closestEnemy = FindClosestEnemy();
-						yield return GetDirection(closestEnemy);
+						yield return GetDirection(c => closestEnemy.GetManhattanDistanceTo(c) <= GameSettings.ExplosionRange);
 					}
 				}
 				else
@@ -74,41 +74,14 @@
 						MapUtils.GetCoordinateFrom(p) :
 						null;
 
-		private Action GetDirection(MapCoordinate target)
+		private Action GetDirection(MapCoordinate target) =>
+			target is not null ? GetDirection(target.Equals) : GetRandomDirection();
+		private Action GetDirection(System.Func<MapCoordinate, bool> condition)
 		{
-			if (target is not null)
+			IEnumerable<Action> path = Pathfinder.FindPath(this, condition);
+			if (path is not null && path.Any())
 			{
-				IList<Action> validActions = new List<Action>();
-				if (target.X < PlayerCoordinate.X && MapUtils.CanPlayerPerformAction(PlayerId, Action.Left))
-				{
-					validActions.Add(Action.Left);
-				}
-				else if (target.X > PlayerCoordinate.X && MapUtils.CanPlayerPerformAction(PlayerId, Action.Right))
-				{
-					validActions.Add(Action.Right);
-				}
-				if (target.Y < PlayerCoordinate.Y && MapUtils.CanPlayerPerformAction(PlayerId, Action.Up))
-				{
-					validActions.Add(Action.Up);
-				}
-				else if (target.Y > PlayerCoordinate.Y && MapUtils.CanPlayerPerformAction(PlayerId, Action.Down))
-				{
-					validActions.Add(Action.Down);
-				}
-				IList<Action> preferredActions = validActions.Where(a => !PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(a))).ToList();
-
-				if (preferredActions.Count > 0)
-				{
-					return preferredActions[random.Next(preferredActions.Count)];
-				}
-				else if (validActions.Count > 0)
-				{
-					return validActions[random.Next(validActions.Count)];
-				}
-				else
-				{
-					return GetRandomDirection();
-				}
+				return path.First();
 			}
 			else
 			{
@@ -118,32 +91,11 @@
 
 		private Action GetRandomDirection()
 		{
-			IList<Action> validActions = new List<Action>();
-			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Left))
+			// Go towards the closest coordinate not coloured by this player
+			IEnumerable<Action> path = Pathfinder.FindPath(this, c => !PlayerColouredCoordinates.Contains(c));
+			if (path is not null && path.Any())
 			{
-				validActions.Add(Action.Left);
-			}
-			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Right))
-			{
-				validActions.Add(Action.Right);
-			}
-			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Up))
-			{
-				validActions.Add(Action.Up);
-			}
-			if (MapUtils.CanPlayerPerformAction(PlayerId, Action.Down))
-			{
-				validActions.Add(Action.Down);
-			}
-			IList<Action> preferredActions = validActions.Where(a => !PlayerColouredCoordinates.Contains(PlayerCoordinate.MoveIn(a))).ToList();
-
-			if (preferredActions.Count > 0)
-			{
-				return preferredActions[random.Next(preferredActions.Count)];
-			}
-			else if (validActions.Count > 0)
-			{
-				return validActions[random.Next(validActions.Count)];
+				return path.First();
 			}
 			else
 			{
