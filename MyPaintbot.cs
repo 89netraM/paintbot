@@ -36,18 +36,21 @@
 					if (ShouldExplode())
 					{
 						yield return Action.Explode;
+						continue;
 					}
 					else
 					{
 						MapCoordinate closestEnemy = FindClosestEnemy();
-						yield return GetDirection(c => closestEnemy.GetManhattanDistanceTo(c) <= GameSettings.ExplosionRange);
+						if (closestEnemy is not null)
+						{
+							yield return GetDirection(c => closestEnemy.GetManhattanDistanceTo(c) <= GameSettings.ExplosionRange);
+							continue;
+						}
 					}
 				}
-				else
-				{
-					MapCoordinate closestPowerUp = FindClosestPowerUp();
-					yield return GetDirection(closestPowerUp);
-				}
+
+				MapCoordinate closestPowerUp = FindClosestPowerUp();
+				yield return GetDirection(closestPowerUp);
 			}
 		}
 
