@@ -60,19 +60,15 @@
 
 		private MapCoordinate FindClosestEnemy() =>
 			Map.CharacterInfos
-				.OrderBy(ci => PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)))
-				.FirstOrDefault(ci => ci.Id != PlayerId)?.Position
-					is int p ?
-						MapUtils.GetCoordinateFrom(p) :
-						null;
+				.Where(ci => ci.Id != PlayerId)
+				.Select(ci => MapUtils.GetCoordinateFrom(ci.Position))
+				.OrderBy(c => PlayerCoordinate.GetManhattanDistanceTo(c))
+				.FirstOrDefault();
 		private MapCoordinate FindClosestPowerUp() =>
 			Map.PowerUpPositions
-				.OrderBy(p => PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(p)))
-				.Cast<int?>()
-				.FirstOrDefault()
-					is int p ?
-						MapUtils.GetCoordinateFrom(p) :
-						null;
+				.Select(MapUtils.GetCoordinateFrom)
+				.OrderBy(c => PlayerCoordinate.GetManhattanDistanceTo(c))
+				.FirstOrDefault();
 
 		private Action GetDirection(MapCoordinate target) =>
 			target is not null ? GetDirection(target.Equals) : GetRandomDirection();
