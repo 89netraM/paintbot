@@ -100,5 +100,26 @@ namespace PaintBot
 		}
 
 		protected abstract IEnumerable<Action> GetActionSequence();
+
+		public int CountCloseNonPlayerColoured()
+		{
+			int count = 0;
+			for (int y = -GameSettings.ExplosionRange; y <= GameSettings.ExplosionRange; y++)
+			{
+				int width = GameSettings.ExplosionRange - System.Math.Abs(y);
+				for (int x = -width; x <= width; x++)
+				{
+					if (x != 0 && y != 0)
+					{
+						MapCoordinate coordinate = new MapCoordinate(PlayerCoordinate.X + x, PlayerCoordinate.Y + y);
+						if (!MapUtils.IsCoordinateOutOfBounds(coordinate) && !PlayerColouredCoordinates.Contains(coordinate))
+						{
+							count++;
+						}
+					}
+				}
+			}
+			return count;
+		}
 	}
 }
