@@ -142,19 +142,24 @@
 			return Task.CompletedTask;
 		}
 
-		private async Task OnGameEnded(GameEnded response)
+		private Task OnGameEnded(GameEnded response)
 		{
 			_hasGameEnded = true;
 			if (GameMode == GameMode.Training)
 			{
 				_logger.Information(response.ToString());
-				await Task.Delay(1000);
-				Process.Start(new ProcessStartInfo($"http://paintbot.cygni.se/#/game/{response.GameId}") { UseShellExecute = true });
+				_logger.Information("Open webpage? (Y/n)");
+				string answer = System.Console.ReadLine();
+				if (String.IsNullOrWhiteSpace(answer) || answer.ToUpperInvariant() == "Y")
+				{
+					Process.Start(new ProcessStartInfo($"https://paintbot.cygni.se/#/game/{response.GameId}") { UseShellExecute = true });
+				}
 			}
 			else if (GameMode == GameMode.Tournament)
 			{
 				_logger.Information("The game has ended"); // Don't spoil the result in the console.
 			}
+			return Task.CompletedTask;
 		}
 
 		private bool IsPlaying()
