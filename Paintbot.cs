@@ -17,6 +17,7 @@
 		private readonly IPaintBotClient _paintBotClient;
 		private readonly IHearBeatSender _heartBeatSender;
 		private readonly ILogger _logger;
+		private readonly AnsiPrinter ansiPrinter = new AnsiPrinter();
 		private readonly int _gameLengthInSeconds;
 
 		private bool _hasGameEnded;
@@ -24,6 +25,7 @@
 		private string _playerId;
 
 		protected GameSettings GameSettings { get; private set; }
+
 
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
 		{
@@ -101,7 +103,8 @@
 
 		private async Task OnMapUpdated(MapUpdated mapUpdated, CancellationToken ct)
 		{
-			_logger.Information($"{mapUpdated}");
+			ansiPrinter.SetupPlayers(mapUpdated.ReceivingPlayerId, mapUpdated.Map.CharacterInfos);
+			System.Console.Write($"\x1b[s\x1b[0;0H{ansiPrinter.WriteMap(mapUpdated.Map)}\x1b[0m\x1b[u");
 			var action = GetAction(mapUpdated);
 			await _paintBotClient.SendAsync(
 				new RegisterMove(mapUpdated.ReceivingPlayerId)
