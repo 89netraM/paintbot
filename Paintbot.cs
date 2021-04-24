@@ -161,6 +161,7 @@
 			{
 				_logger.Information(response.ToString());
 				_logger.Information("Open webpage? (Y/n)");
+				System.Console.CursorVisible = true;
 				string answer = System.Console.ReadLine();
 				if (String.IsNullOrWhiteSpace(answer) || answer.ToUpperInvariant() == "Y")
 				{
