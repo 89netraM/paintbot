@@ -13,6 +13,8 @@
 	public class MyPaintBot : StatePaintBot
 	{
 		public readonly System.Random Random;
+		public int? DistanceToEnemy { get; private set; } = null;
+		public int IsLosingEnemy { get; private set; } = 0;
 
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, hearBeatSender, logger)
@@ -36,6 +38,8 @@
 					if (ShouldExplode())
 					{
 						yield return Action.Explode;
+						DistanceToEnemy = null;
+						IsLosingEnemy = 0;
 						continue;
 					}
 					else
@@ -43,6 +47,15 @@
 						Action[] enemyPath = ShortestPathToAnyEnemy();
 						if (enemyPath is not null)
 						{
+							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
+							{
+								IsLosingEnemy++;
+							}
+							else
+							{
+								IsLosingEnemy = 0;
+							}
+							DistanceToEnemy = enemyPath.Length;
 							yield return enemyPath[0];
 							continue;
 						}
