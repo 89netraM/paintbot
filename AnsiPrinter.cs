@@ -7,10 +7,12 @@ namespace PaintBot
 
 	public class AnsiPrinter
 	{
-		private static readonly char BlockCharacter = '▄';
+		private static readonly string PlayerString = "██";
+		private static readonly string EmptyString = "  ";
+		private static readonly string PowerUpString = "⡱⢎";
 		private static readonly byte TileColour = 15;
-		private static readonly byte ObstacleColour = 232;
-		private static readonly byte PowerUpColour = 11;
+		private static readonly byte ObstacleColour = 0;
+		private static readonly byte PowerUpColour = 208;
 		private static readonly IReadOnlyList<Colour> Colours = new[]
 		{
 			new Colour(196, 197),
@@ -55,51 +57,61 @@ namespace PaintBot
 				.ToDictionary(cid => cid.c, c => c.id);
 			ISet<MapCoordinate> obstacles = mapUtils.GetObstacleCoordinates().ToHashSet();
 
-			byte GetColour(MapCoordinate coordinate)
-			{
-				string id;
-				if (players.TryGetValue(coordinate, out id))
-				{
-					return Colours[playerColours[id]].Player;
-				}
-				else if (powerUps.Contains(coordinate))
-				{
-					return PowerUpColour;
-				}
-				else if (paintedTiles.TryGetValue(coordinate, out id))
-				{
-					return Colours[playerColours[id]].Tile;
-				}
-				else if (obstacles.Contains(coordinate))
-				{
-					return ObstacleColour;
-				}
-				else
-				{
-					return TileColour;
-				}
-			}
-
 			StringBuilder sb = new StringBuilder();
 			byte prevForeground = TileColour;
 			byte prevBackground = ObstacleColour;
-			for (int y = 0; y < map.Height; y += 2)
+			for (int y = 0; y < map.Height; y++)
 			{
 				for (int x = 0; x < map.Width; x++)
 				{
-					byte foreground = GetColour(new MapCoordinate(x, y + 1));
-					byte background = GetColour(new MapCoordinate(x, y));
-					if (prevForeground != foreground)
+					string id;
+					MapCoordinate coordinate = new MapCoordinate(x, y);
+
+					byte background = TileColour;
+					if (paintedTiles.TryGetValue(coordinate, out id))
 					{
-						sb.Append($"\x1b[38;5;{foreground}m");
-						prevForeground = foreground;
+						background = Colours[playerColours[id]].Tile;
+					}
+					else if (obstacles.Contains(coordinate))
+					{
+						background = ObstacleColour;
 					}
 					if (prevBackground != background)
 					{
 						sb.Append($"\x1b[48;5;{background}m");
 						prevBackground = background;
 					}
-					sb.Append(BlockCharacter);
+
+					if (players.TryGetValue(coordinate, out id))
+					{
+						byte foreground = Colours[playerColours[id]].Player;
+						if (prevForeground != foreground)
+						{
+							sb.Append($"\x1b[38;5;{foreground}m{PlayerString}");
+							prevForeground = foreground;
+						}
+						else
+						{
+							sb.Append(PlayerString);
+						}
+					}
+					else if (powerUps.Contains(coordinate))
+					{
+						byte foreground = PowerUpColour;
+						if (prevForeground != foreground)
+						{
+							sb.Append($"\x1b[38;5;{foreground}m{PowerUpString}");
+							prevForeground = foreground;
+						}
+						else
+						{
+							sb.Append(PowerUpString);
+						}
+					}
+					else
+					{
+						sb.Append(EmptyString);
+					}
 				}
 				sb.AppendLine();
 			}

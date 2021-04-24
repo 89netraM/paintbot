@@ -14,6 +14,7 @@
 	{
 		public static Task Main(string[] args)
 		{
+			Console.OutputEncoding = System.Text.Encoding.UTF8;
 			var config = GetConfig(args);
 			var services = ConfigureServices();
 			var serviceProvider = services.BuildServiceProvider();
