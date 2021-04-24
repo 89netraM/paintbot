@@ -76,7 +76,7 @@
 
 		private bool ShouldExplode() =>
 			Map.WorldTick == TotalGameTicks - 2 ||
-			IsLosingEnemy >= 10 ||
+			(IsLosingEnemy >= 10 && CountCloseNonPlayerColoured() >= GameSettings.PointsPerCausedStun * 2) ||
 			ShortestPathToAnyPowerUp()?.Length <= 2 ||
 			Map.CharacterInfos.Any(ci =>
 				ci.Id != PlayerId &&
