@@ -48,9 +48,11 @@
 			var name = args.ElementAtOrDefault(0) ?? throw new Exception("A bot name must be provided");
 			var unparsedGameMode = args.ElementAtOrDefault(1);
 			var unparsedGameLengthInSeconds = args.ElementAtOrDefault(2);
+			var unparsedShouldWriteMap = args.ElementAtOrDefault(3);
 
 			var couldParseGameMode = Enum.TryParse<GameMode>(unparsedGameMode, out var gameMode);
 			var couldParseGameLength = int.TryParse(unparsedGameLengthInSeconds, out var gameLengthInSeconds);
+			var couldParseShouldWriteMap = bool.TryParse(unparsedShouldWriteMap, out bool shouldWriteMap);
 
 			if (!couldParseGameMode)
 			{
@@ -61,7 +63,7 @@
 				gameLengthInSeconds = 180;
 			}
 
-			return new PaintBotConfig(name, gameMode, gameLengthInSeconds);
+			return new PaintBotConfig(name, gameMode, gameLengthInSeconds, shouldWriteMap);
 		}
 	}
 }
