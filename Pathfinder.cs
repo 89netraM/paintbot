@@ -38,6 +38,11 @@ namespace PaintBot
 						{
 							cost += 0.25f;
 						}
+						if (to.X == 0 || to.X == paintBot.Map.Width - 1 ||
+							to.Y == 0 || to.Y == paintBot.Map.Height - 1)
+						{
+							cost += 0.25f;
+						}
 						directionTo.Add(to, direction);
 						if (condition.Invoke(to))
 						{
