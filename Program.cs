@@ -15,12 +15,13 @@
 		public static Task Main(string[] args)
 		{
 			Console.OutputEncoding = System.Text.Encoding.UTF8;
+			Console.CursorVisible = false;
 			var config = GetConfig(args);
 			var services = ConfigureServices();
 			var serviceProvider = services.BuildServiceProvider();
 			var myBot = new MyPaintBot(config, serviceProvider.GetService<IPaintBotClient>(),
 				serviceProvider.GetService<IHearBeatSender>(), serviceProvider.GetService<ILogger>());
-			return myBot.Run(CancellationToken.None);
+			return myBot.Run(CancellationToken.None).ContinueWith(_ => Console.CursorVisible = true);
 		}
 
 		private static void ConfigureLogger(IServiceCollection services)
