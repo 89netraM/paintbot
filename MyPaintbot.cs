@@ -63,16 +63,17 @@
 
 		private bool ShouldExplode() =>
 			Map.WorldTick == TotalGameTicks - 2 ||
+			IsLosingEnemy >= 10 ||
 			Map.CharacterInfos.Any(ci =>
 				ci.Id != PlayerId &&
-				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <= GameSettings.ExplosionRange
+				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) < GameSettings.ExplosionRange
 			);
 
 		private Action[] ShortestPathToAnyEnemy() =>
 			Map.CharacterInfos
 				.Where(ci => ci.Id != PlayerId)
 				.Select(ci => MapUtils.GetCoordinateFrom(ci.Position))
-				.Select(c => Pathfinder.FindPath(this, ct => c.GetManhattanDistanceTo(ct) <= GameSettings.ExplosionRange)?.ToArray())
+				.Select(c => Pathfinder.FindPath(this, ct => c.GetManhattanDistanceTo(ct) < GameSettings.ExplosionRange)?.ToArray())
 				.OfType<Action[]>()
 				.OrderBy(p => p.Length)
 				.FirstOrDefault();
