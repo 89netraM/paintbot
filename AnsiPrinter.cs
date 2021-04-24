@@ -15,16 +15,16 @@ namespace PaintBot
 		private static readonly byte PowerUpColour = 208;
 		private static readonly IReadOnlyList<Colour> Colours = new[]
 		{
-			new Colour(196, 197),
+			new Colour(160, 196),
 			new Colour(21, 20),
 			new Colour(34, 40),
 			new Colour(202, 208),
 			new Colour(51, 123),
 			new Colour(201, 165),
-			new Colour(250, 254),
+			new Colour(244, 250),
 			new Colour(213, 177),
 			new Colour(4, 12),
-			new Colour(226, 227),
+			new Colour(226, 229),
 		};
 
 		public bool IsSetup { get; private set; } = false;
