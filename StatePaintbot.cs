@@ -101,17 +101,19 @@ namespace PaintBot
 
 		protected abstract IEnumerable<Action> GetActionSequence();
 
-		public int CountCloseNonPlayerColoured()
+		public int CountCloseNonPlayerColoured() => CountCloseNonPlayerColoured(PlayerCoordinate, GameSettings.ExplosionRange);
+		public int CountCloseNonPlayerColoured(int range) => CountCloseNonPlayerColoured(PlayerCoordinate, range);
+		public int CountCloseNonPlayerColoured(MapCoordinate center, int range)
 		{
 			int count = 0;
-			for (int y = -GameSettings.ExplosionRange; y <= GameSettings.ExplosionRange; y++)
+			for (int y = -range; y <= range; y++)
 			{
-				int width = GameSettings.ExplosionRange - System.Math.Abs(y);
+				int width = range - System.Math.Abs(y);
 				for (int x = -width; x <= width; x++)
 				{
 					if (x != 0 && y != 0)
 					{
-						MapCoordinate coordinate = new MapCoordinate(PlayerCoordinate.X + x, PlayerCoordinate.Y + y);
+						MapCoordinate coordinate = new MapCoordinate(center.X + x, center.Y + y);
 						if (!MapUtils.IsCoordinateOutOfBounds(coordinate) && !PlayerColouredCoordinates.Contains(coordinate))
 						{
 							count++;
