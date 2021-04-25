@@ -111,7 +111,7 @@ namespace PaintBot
 				int width = range - System.Math.Abs(y);
 				for (int x = -width; x <= width; x++)
 				{
-					if (x != 0 && y != 0)
+					if (x != 0 || y != 0)
 					{
 						MapCoordinate coordinate = new MapCoordinate(center.X + x, center.Y + y);
 						if (MapUtils.IsMovementPossibleTo(coordinate) && !PlayerColouredCoordinates.Contains(coordinate))
