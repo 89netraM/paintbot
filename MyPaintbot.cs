@@ -99,21 +99,6 @@
 				.OrderBy(p => p.Length)
 				.FirstOrDefault();
 
-		private Action GetDirection(MapCoordinate target) =>
-			target is not null ? GetDirection(target.Equals) : GetRandomDirection();
-		private Action GetDirection(System.Func<MapCoordinate, bool> condition)
-		{
-			IEnumerable<Action> path = Pathfinder.FindPath(this, condition);
-			if (path is not null && path.Any())
-			{
-				return path.First();
-			}
-			else
-			{
-				return GetRandomDirection();
-			}
-		}
-
 		private Action GetRandomDirection()
 		{
 			// Go towards the closest coordinate not coloured by this player
