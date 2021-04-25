@@ -114,7 +114,7 @@ namespace PaintBot
 					if (x != 0 && y != 0)
 					{
 						MapCoordinate coordinate = new MapCoordinate(center.X + x, center.Y + y);
-						if (!MapUtils.IsCoordinateOutOfBounds(coordinate) && !PlayerColouredCoordinates.Contains(coordinate))
+						if (MapUtils.IsMovementPossibleTo(coordinate) && !PlayerColouredCoordinates.Contains(coordinate))
 						{
 							count++;
 						}
