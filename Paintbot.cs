@@ -24,6 +24,7 @@
 		private bool _hasGameEnded;
 		private bool _hasTournamentEnded;
 		private string _playerId;
+		private string gameUrl;
 
 		protected GameSettings GameSettings { get; private set; }
 
@@ -75,7 +76,7 @@
 			{
 				PlayerRegistered playerRegistered => OnPlayerRegistered(playerRegistered, ct),
 				MapUpdated mapUpdated => OnMapUpdated(mapUpdated, ct),
-				GameLink gameLink => OnInfoEvent(gameLink),
+				GameLink gameLink => OnGameLink(gameLink),
 				GameStarting gameStarting => OnGameStarting(gameStarting),
 				GameResult gameResult => OnInfoEvent(gameResult),
 				CharacterStunned characterStunned => OnInfoEvent(characterStunned),
@@ -130,6 +131,12 @@
 			return OnInfoEvent(gameStarting);
 		}
 
+		private Task OnGameLink(GameLink gameLink)
+		{
+			gameUrl = gameLink.Url;
+			return OnInfoEvent(gameLink);
+		}
+
 		private Task OnInfoEvent(Response response)
 		{
 			if (response is GameResult)
@@ -160,12 +167,15 @@
 			if (GameMode == GameMode.Training)
 			{
 				_logger.Information(response.ToString());
-				_logger.Information("Open webpage? (Y/n)");
-				System.Console.CursorVisible = true;
-				string answer = System.Console.ReadLine();
-				if (String.IsNullOrWhiteSpace(answer) || answer.ToUpperInvariant() == "Y")
+				if (gameUrl is not null)
 				{
-					Process.Start(new ProcessStartInfo($"https://paintbot.cygni.se/#/game/{response.GameId}") { UseShellExecute = true });
+					_logger.Information("Open webpage? (Y/n)");
+					System.Console.CursorVisible = true;
+					string answer = System.Console.ReadLine();
+					if (String.IsNullOrWhiteSpace(answer) || answer.ToUpperInvariant() == "Y")
+					{
+						Process.Start(new ProcessStartInfo(gameUrl) { UseShellExecute = true });
+					}
 				}
 			}
 			else if (GameMode == GameMode.Tournament)

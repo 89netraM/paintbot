@@ -39,7 +39,7 @@
 			ConfigureLogger(services);
 			services.AddTransient<IHearBeatSender, HeartBeatSender>();
 			services.AddSingleton<IPaintBotClient, PaintBotClient>();
-			services.AddSingleton(new PaintBotServerConfig { BaseUrl = "wss://server.paintbot.cygni.se" });
+			services.AddSingleton(new PaintBotServerConfig { BaseUrl = "ws://server.paintbot.åsberg.net" });
 			return services;
 		}
 
