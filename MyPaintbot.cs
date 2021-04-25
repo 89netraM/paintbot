@@ -117,7 +117,11 @@
 		private Action GetRandomDirection()
 		{
 			// Go towards the closest coordinate not coloured by this player
-			IEnumerable<Action> path = Pathfinder.FindPath(this, c => !PlayerColouredCoordinates.Contains(c));
+			IEnumerable<Action> path = Pathfinder.FindPath(
+				this,
+				c => !PlayerColouredCoordinates.Contains(c) &&
+					CountCloseNonPlayerColoured(c, 1) >= 2
+			);
 			if (path is not null && path.Any())
 			{
 				return path.First();
