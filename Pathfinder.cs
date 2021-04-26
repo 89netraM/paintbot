@@ -43,6 +43,10 @@ namespace PaintBot
 						{
 							cost += 0.25f;
 						}
+						if (IsInRangeOfOther(paintBot, to))
+						{
+							cost += 100.0f;
+						}
 						directionTo.Add(to, direction);
 						if (condition.Invoke(to))
 						{
@@ -61,8 +65,17 @@ namespace PaintBot
 			return paintBot.Map.CharacterInfos.Any(ci =>
 				ci.Id != paintBot.PlayerId &&
 				ci.StunnedForGameTicks == 0 &&
+				paintBot.MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) <= 1
+			);
+		}
+		private static bool IsInRangeOfOther(MyPaintBot paintBot, MapCoordinate coordinate)
+		{
+			return paintBot.Map.CharacterInfos.Any(ci =>
+				ci.Id != paintBot.PlayerId &&
+				ci.StunnedForGameTicks == 0 &&
+				ci.CarryingPowerUp &&
 				paintBot.MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) <=
-					(ci.CarryingPowerUp ? paintBot.GameSettings.ExplosionRange : 1)
+					paintBot.GameSettings.ExplosionRange
 			);
 		}
 
