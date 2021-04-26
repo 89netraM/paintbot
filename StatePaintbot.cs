@@ -78,6 +78,24 @@ namespace PaintBot
 			}
 		}
 
+		private long enemyCoordinatesCache = -1;
+		private MapCoordinate[] enemyCoordinates = null;
+		protected MapCoordinate[] EnemyCoordinates
+		{
+			get
+			{
+				if (enemyCoordinatesCache != Map.WorldTick)
+				{
+					enemyCoordinates = Map.CharacterInfos
+						.Where(ci => ci.Id != PlayerId)
+						.Select(ci => MapUtils.GetCoordinateFrom(ci.Position))
+						.ToArray();
+					enemyCoordinatesCache = Map.WorldTick;
+				}
+				return enemyCoordinates;
+			}
+		}
+
 		private IEnumerator<Action> currentActionSequence;
 
 		protected StatePaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger) :
