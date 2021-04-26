@@ -119,11 +119,10 @@ namespace PaintBot
 
 		protected abstract IEnumerable<Action> GetActionSequence();
 
-		public int CountCloseNonPlayerColoured() => CountCloseNonPlayerColoured(PlayerCoordinate, GameSettings.ExplosionRange);
-		public int CountCloseNonPlayerColoured(int range) => CountCloseNonPlayerColoured(PlayerCoordinate, range);
-		public int CountCloseNonPlayerColoured(MapCoordinate center, int range)
+		public IEnumerable<MapCoordinate> CoordinatesInManhattanRange() => CoordinatesInManhattanRange(GameSettings.ExplosionRange);
+		public IEnumerable<MapCoordinate> CoordinatesInManhattanRange(int range) => CoordinatesInManhattanRange(PlayerCoordinate, range);
+		public IEnumerable<MapCoordinate> CoordinatesInManhattanRange(MapCoordinate center, int range)
 		{
-			int count = 0;
 			for (int y = -range; y <= range; y++)
 			{
 				int width = range - System.Math.Abs(y);
@@ -132,14 +131,48 @@ namespace PaintBot
 					if (x != 0 || y != 0)
 					{
 						MapCoordinate coordinate = new MapCoordinate(center.X + x, center.Y + y);
-						if (MapUtils.IsMovementPossibleTo(coordinate) && !PlayerColouredCoordinates.Contains(coordinate))
+						if (MapUtils.IsMovementPossibleTo(coordinate))
 						{
-							count++;
+							yield return coordinate;
 						}
 					}
 				}
 			}
-			return count;
+		}
+
+		public int CountCloseNonPlayerColoured() => CountCloseNonPlayerColoured(GameSettings.ExplosionRange);
+		public int CountCloseNonPlayerColoured(int range) => CountCloseNonPlayerColoured(PlayerCoordinate, range);
+		public int CountCloseNonPlayerColoured(MapCoordinate center, int range) =>
+			CoordinatesInManhattanRange(center, range)
+			.Count(c => !PlayerColouredCoordinates.Contains(c));
+
+		public int PointsForUseOfPowerUp() => PointsForUseOfPowerUp(GameSettings.ExplosionRange);
+		public int PointsForUseOfPowerUp(int range) => PointsForUseOfPowerUp(PlayerCoordinate, range);
+		public int PointsForUseOfPowerUp(MapCoordinate center, int range)
+		{
+			// Coordinates coloured by other players with more or equal amount
+			// of points
+			HashSet<MapCoordinate> leaderColouredCoordinates = Map.CharacterInfos
+				.Where(ci => ci.Id != PlayerId && ci.Points >= PlayerInfo.Points)
+				.SelectMany(ci => ci.ColouredPositions.Select(MapUtils.GetCoordinateFrom))
+				.ToHashSet();
+
+			return CoordinatesInManhattanRange(center, range)
+				.Sum(coordinate =>
+				{
+					if (MapUtils.GetTileAt(coordinate) == Tile.Character)
+					{
+						return GameSettings.PointsPerCausedStun;
+					}
+					else if (leaderColouredCoordinates.Contains(coordinate))
+					{
+						return GameSettings.PointsPerTileOwned * 2;
+					}
+					else
+					{
+						return GameSettings.PointsPerTileOwned;
+					}
+				});
 		}
 	}
 }
