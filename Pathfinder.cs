@@ -26,12 +26,14 @@ namespace PaintBot
 			while (toTest.Count > 0)
 			{
 				var (from, fromSteps) = toTest.Dequeue();
+				bool wasInRangeOfOther = IsInRangeOfOther(paintBot, from);
 				foreach (Action direction in directions.OrderBy(_ => paintBot.Random.NextDouble()))
 				{
 					MapCoordinate to = from.MoveIn(direction);
 					if (!directionTo.ContainsKey(to) &&
 						paintBot.MapUtils.IsMovementPossibleTo(to) &&
-						!IsTooCloseToOther(paintBot, to))
+						!IsTooCloseToOther(paintBot, to) &&
+						(wasInRangeOfOther || !IsInRangeOfOther(paintBot, to)))
 					{
 						float cost = 1.0f;
 						if (paintBot.PlayerColouredCoordinates.Contains(to))
@@ -42,10 +44,6 @@ namespace PaintBot
 							to.Y == 0 || to.Y == paintBot.Map.Height - 1)
 						{
 							cost += 0.25f;
-						}
-						if (IsInRangeOfOther(paintBot, to))
-						{
-							cost += 100.0f;
 						}
 						directionTo.Add(to, direction);
 						if (condition.Invoke(to))
