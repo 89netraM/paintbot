@@ -16,21 +16,34 @@
 		public int? DistanceToEnemy { get; private set; } = null;
 		public int IsLosingEnemy { get; private set; } = 0;
 
-		private long closestExplodePathCache = -1;
-		private Action[] closestExplodePath = null;
-		public Action[] ClosestExplodePath
+		private long bestExplodePathCache = -1;
+		private Action[] bestExplodePath = null;
+		public Action[] BestExplodePath
 		{
 			get
 			{
-				if (closestExplodePathCache != Map.WorldTick)
+				if (bestExplodePathCache != Map.WorldTick)
 				{
-					closestExplodePath = Pathfinder.FindPath(
+					int topPoints = 0;
+					bestExplodePath = Pathfinder.FindPath(
 						this,
-						c => PointsForUseOfPowerUp(c, GameSettings.ExplosionRange) >= (GameSettings.ExplosionRange + 1.0) * (GameSettings.ExplosionRange * 0.5) * 4.0
-					)?.ToArray();
-					closestExplodePathCache = Map.WorldTick;
+						c =>
+						{
+							int points = PointsForUseOfPowerUp(c, GameSettings.ExplosionRange);
+							if (points > topPoints)
+							{
+								topPoints = points;
+								return true;
+							}
+							else
+							{
+								return false;
+							}
+						}
+					).LastOrDefault()?.ToArray();
+					bestExplodePathCache = Map.WorldTick;
 				}
-				return closestExplodePath;
+				return bestExplodePath;
 			}
 		}
 
@@ -45,7 +58,7 @@
 					closestPowerUpPath = Pathfinder.FindPath(
 						this,
 						c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))
-					)?.ToArray();
+					).FirstOrDefault()?.ToArray();
 					closestPowerUpPathCache = Map.WorldTick;
 				}
 				return closestPowerUpPath;
@@ -88,9 +101,9 @@
 
 			while (PlayerInfo.CarryingPowerUp)
 			{
-				if (ClosestExplodePath?.Length > 0)
+				if (BestExplodePath?.Length > 0)
 				{
-					yield return ClosestExplodePath.First();
+					yield return BestExplodePath.First();
 				}
 				else
 				{
@@ -106,7 +119,7 @@
 				this,
 				c => !PlayerColouredCoordinates.Contains(c) &&
 					CountCloseNonPlayerColoured(c, 1) >= 2
-			);
+			).FirstOrDefault();
 			if (path is not null && path.Any())
 			{
 				return path.First();

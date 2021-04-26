@@ -10,11 +10,11 @@ namespace PaintBot
 	{
 		private static readonly IReadOnlyList<Action> directions = new[] { Action.Left, Action.Right, Action.Up, Action.Down };
 
-		public static IEnumerable<Action> FindPath(MyPaintBot paintBot, System.Func<MapCoordinate, bool> condition)
+		public static IEnumerable<IEnumerable<Action>> FindPath(MyPaintBot paintBot, System.Func<MapCoordinate, bool> condition)
 		{
 			if (condition.Invoke(paintBot.PlayerCoordinate))
 			{
-				return Enumerable.Empty<Action>();
+				yield return Enumerable.Empty<Action>();
 			}
 
 			Dictionary<MapCoordinate, Action?> directionTo = new Dictionary<MapCoordinate, Action?>();
@@ -48,14 +48,12 @@ namespace PaintBot
 						directionTo.Add(to, direction);
 						if (condition.Invoke(to))
 						{
-							return BuildPath(directionTo, to);
+							yield return BuildPath(directionTo, to);
 						}
 						toTest.Enqueue((to, fromSteps + cost), fromSteps + cost);
 					}
 				}
 			}
-
-			return null;
 		}
 
 		private static bool IsTooCloseToOther(MyPaintBot paintBot, MapCoordinate coordinate)
