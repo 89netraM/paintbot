@@ -16,6 +16,42 @@
 		public int? DistanceToEnemy { get; private set; } = null;
 		public int IsLosingEnemy { get; private set; } = 0;
 
+		private long closestEnemyPathCache = -1;
+		private Action[] closestEnemyPath = null;
+		public Action[] ClosestEnemyPath
+		{
+			get
+			{
+				if (closestEnemyPathCache != Map.WorldTick)
+				{
+					closestEnemyPath = Pathfinder.FindPath(
+						this,
+						c => EnemyCoordinates.Any(ec => c.GetManhattanDistanceTo(ec) < GameSettings.ExplosionRange)
+					)?.ToArray();
+					closestEnemyPathCache = Map.WorldTick;
+				}
+				return closestEnemyPath;
+			}
+		}
+
+		private long closestPowerUpPathCache = -1;
+		private Action[] closestPowerUpPath = null;
+		public Action[] ClosestPowerUpPath
+		{
+			get
+			{
+				if (closestPowerUpPathCache != Map.WorldTick)
+				{
+					closestPowerUpPath = Pathfinder.FindPath(
+						this,
+						c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))
+					)?.ToArray();
+					closestPowerUpPathCache = Map.WorldTick;
+				}
+				return closestPowerUpPath;
+			}
+		}
+
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, hearBeatSender, logger)
 		{
@@ -44,8 +80,8 @@
 					}
 					else
 					{
-						Action[] enemyPath = ShortestPathToAnyEnemy();
-						if (enemyPath is not null)
+						Action[] enemyPath = ClosestEnemyPath;
+						if (enemyPath is not null && enemyPath.Length > 0)
 						{
 							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
 							{
@@ -62,10 +98,10 @@
 					}
 				}
 
-				Action[] powerUpPath = ShortestPathToAnyPowerUp();
-				if (powerUpPath is not null)
+				Action[] powerUpPath = ClosestPowerUpPath;
+				if (powerUpPath is not null && powerUpPath.Length > 0)
 				{
-					yield return powerUpPath[0];
+					yield return powerUpPath.First();
 				}
 				else
 				{
@@ -77,27 +113,11 @@
 		private bool ShouldExplode() =>
 			Map.WorldTick == TotalGameTicks - 2 ||
 			(IsLosingEnemy >= 10 && CountCloseNonPlayerColoured() >= GameSettings.PointsPerCausedStun * 2) ||
-			ShortestPathToAnyPowerUp()?.Length <= 2 ||
+			ClosestPowerUpPath?.Length <= 2 ||
 			Map.CharacterInfos.Any(ci =>
 				ci.Id != PlayerId &&
 				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) < GameSettings.ExplosionRange
 			);
-
-		private Action[] ShortestPathToAnyEnemy() =>
-			Map.CharacterInfos
-				.Where(ci => ci.Id != PlayerId)
-				.Select(ci => MapUtils.GetCoordinateFrom(ci.Position))
-				.Select(c => Pathfinder.FindPath(this, ct => c.GetManhattanDistanceTo(ct) < GameSettings.ExplosionRange)?.ToArray())
-				.OfType<Action[]>()
-				.OrderBy(p => p.Length)
-				.FirstOrDefault();
-		private Action[] ShortestPathToAnyPowerUp() =>
-			Map.PowerUpPositions
-				.Select(MapUtils.GetCoordinateFrom)
-				.Select(c => Pathfinder.FindPath(this, c.Equals)?.ToArray())
-				.OfType<Action[]>()
-				.OrderBy(p => p.Length)
-				.FirstOrDefault();
 
 		private Action GetRandomDirection()
 		{
