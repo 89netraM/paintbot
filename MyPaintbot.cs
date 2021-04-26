@@ -16,21 +16,21 @@
 		public int? DistanceToEnemy { get; private set; } = null;
 		public int IsLosingEnemy { get; private set; } = 0;
 
-		private long closestEnemyPathCache = -1;
-		private Action[] closestEnemyPath = null;
-		public Action[] ClosestEnemyPath
+		private long closestExplodePathCache = -1;
+		private Action[] closestExplodePath = null;
+		public Action[] ClosestExplodePath
 		{
 			get
 			{
-				if (closestEnemyPathCache != Map.WorldTick)
+				if (closestExplodePathCache != Map.WorldTick)
 				{
-					closestEnemyPath = Pathfinder.FindPath(
+					closestExplodePath = Pathfinder.FindPath(
 						this,
-						c => EnemyCoordinates.Any(ec => c.GetManhattanDistanceTo(ec) < GameSettings.ExplosionRange)
+						c => PointsForUseOfPowerUp(c, GameSettings.ExplosionRange) >= (GameSettings.ExplosionRange + 1.0) * (GameSettings.ExplosionRange * 0.5) * 4.0
 					)?.ToArray();
-					closestEnemyPathCache = Map.WorldTick;
+					closestExplodePathCache = Map.WorldTick;
 				}
-				return closestEnemyPath;
+				return closestExplodePath;
 			}
 		}
 
@@ -65,61 +65,39 @@
 
 		public override string Name { get; }
 
-		protected override IEnumerable<Action> GetActionSequence()
-		{
-			while (true)
-			{
-				if (PlayerInfo.CarryingPowerUp)
-				{
-					if (ShouldExplode())
-					{
-						yield return Action.Explode;
-						DistanceToEnemy = null;
-						IsLosingEnemy = 0;
-						continue;
-					}
-					else
-					{
-						Action[] enemyPath = ClosestEnemyPath;
-						if (enemyPath is not null && enemyPath.Length > 0)
-						{
-							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
-							{
-								IsLosingEnemy++;
-							}
-							else
-							{
-								IsLosingEnemy = 0;
-							}
-							DistanceToEnemy = enemyPath.Length;
-							yield return enemyPath[0];
-							continue;
-						}
-					}
-				}
+		protected override IEnumerable<Action> GetActionSequence() =>
+			GetPreliminaryActionSequence()
+				// Always explode if an enemy is in range
+				.Select(a => PlayerInfo.CarryingPowerUp && EnemyCoordinates.Any(c => c.GetManhattanDistanceTo(PlayerCoordinate) < GameSettings.ExplosionRange) ? Action.Explode : a)
+				// Always try to explode on last tick
+				.Select(a => PlayerInfo.CarryingPowerUp && Map.WorldTick == TotalGameTicks - 2 ? Action.Explode : a);
 
-				Action[] powerUpPath = ClosestPowerUpPath;
-				if (powerUpPath is not null && powerUpPath.Length > 0)
+		private IEnumerable<Action> GetPreliminaryActionSequence()
+		{
+			while (!PlayerInfo.CarryingPowerUp)
+			{
+				if (ClosestPowerUpPath is not null)
 				{
-					yield return powerUpPath.First();
+					yield return ClosestPowerUpPath.First();
 				}
 				else
 				{
 					yield return GetRandomDirection();
 				}
 			}
-		}
 
-		private bool ShouldExplode() =>
-			Map.WorldTick == TotalGameTicks - 2 ||
-			(IsLosingEnemy >= 10 &&
-				PointsForUseOfPowerUp() >= (GameSettings.ExplosionRange + 1.0) * (GameSettings.ExplosionRange * 0.5) * 4 / 2
-			) ||
-			ClosestPowerUpPath?.Length <= 2 ||
-			Map.CharacterInfos.Any(ci =>
-				ci.Id != PlayerId &&
-				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) < GameSettings.ExplosionRange
-			);
+			while (PlayerInfo.CarryingPowerUp)
+			{
+				if (ClosestExplodePath?.Length > 0)
+				{
+					yield return ClosestExplodePath.First();
+				}
+				else
+				{
+					yield return Action.Explode;
+				}
+			}
+		}
 
 		private Action GetRandomDirection()
 		{
