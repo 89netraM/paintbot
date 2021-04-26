@@ -2,7 +2,7 @@ namespace PaintBot.Game.Configuration
 {
 	public class GameSettings
 	{
-		public int MaxNoofPlayers { get; set; } = 10;
+		public int MaxNoofPlayers { get; set; } = 5;
 		public int TimeInMsPerTick { get; set; } = 250;
 		public bool ObstaclesEnabled { get; set; } = true;
 		public bool PowerUpsEnabled { get; set; } = true;
