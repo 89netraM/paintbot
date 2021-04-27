@@ -28,6 +28,9 @@
 
 		protected GameSettings GameSettings { get; private set; }
 
+		public event System.Action<GameStarting> GameStartingEvent;
+		public event System.Action<MapUpdated> MapUpdatedEvent;
+
 
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
 		{
@@ -115,6 +118,7 @@
 			{
 				_logger.Information($"{mapUpdated}");
 			}
+			MapUpdatedEvent?.Invoke(mapUpdated);
 			var action = GetAction(mapUpdated);
 			await _paintBotClient.SendAsync(
 				new RegisterMove(mapUpdated.ReceivingPlayerId)
@@ -128,6 +132,7 @@
 		private Task OnGameStarting(GameStarting gameStarting)
 		{
 			GameSettings = gameStarting.GameSettings;
+			GameStartingEvent?.Invoke(gameStarting);
 			return OnInfoEvent(gameStarting);
 		}
 
@@ -167,16 +172,6 @@
 			if (GameMode == GameMode.Training)
 			{
 				_logger.Information(response.ToString());
-				if (gameUrl is not null)
-				{
-					_logger.Information("Open webpage? (Y/n)");
-					System.Console.CursorVisible = true;
-					string answer = System.Console.ReadLine();
-					if (String.IsNullOrWhiteSpace(answer) || answer.ToUpperInvariant() == "Y")
-					{
-						Process.Start(new ProcessStartInfo(gameUrl) { UseShellExecute = true });
-					}
-				}
 			}
 			else if (GameMode == GameMode.Tournament)
 			{

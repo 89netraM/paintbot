@@ -12,7 +12,7 @@
 
 	public class Program
 	{
-		public static Task Main(string[] args)
+		public static void Main(string[] args)
 		{
 			Console.OutputEncoding = System.Text.Encoding.UTF8;
 			Console.CursorVisible = false;
@@ -21,7 +21,8 @@
 			var serviceProvider = services.BuildServiceProvider();
 			var myBot = new MyPaintBot(config, serviceProvider.GetService<IPaintBotClient>(),
 				serviceProvider.GetService<IHearBeatSender>(), serviceProvider.GetService<ILogger>());
-			return myBot.Run(CancellationToken.None).ContinueWith(_ => Console.CursorVisible = true);
+			using var game = new PaintBotGame(myBot);
+			game.Run();
 		}
 
 		private static void ConfigureLogger(IServiceCollection services)
