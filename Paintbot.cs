@@ -29,7 +29,7 @@
 		protected GameSettings GameSettings { get; private set; }
 
 		public event System.Action<GameStarting> GameStartingEvent;
-		public event System.Action<MapUpdated> MapUpdatedEvent;
+		public System.Func<MapUpdated, CancellationToken, Task<Action>> MapUpdatedEvent;
 
 
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
@@ -118,8 +118,7 @@
 			{
 				_logger.Information($"{mapUpdated}");
 			}
-			MapUpdatedEvent?.Invoke(mapUpdated);
-			var action = GetAction(mapUpdated);
+			var action = await MapUpdatedEvent?.Invoke(mapUpdated, ct);
 			await _paintBotClient.SendAsync(
 				new RegisterMove(mapUpdated.ReceivingPlayerId)
 				{

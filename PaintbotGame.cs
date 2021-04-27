@@ -1,5 +1,6 @@
 namespace PaintBot
 {
+	using Action = Game.Action.Action;
 	using Game.Configuration;
 	using Game.Map;
 	using System;
@@ -41,6 +42,21 @@ namespace PaintBot
 		private CancellationTokenSource cancellationTokenSource;
 		private Task paintBotTask;
 
+		private KeyboardState? lastKeyboardState = null;
+		private GamePadState? lastGamePadState = null;
+		private Action? mostRecentAction = null;
+		private Action? MostRecentAction
+		{
+			get => mostRecentAction;
+			set
+			{
+				if (mostRecentAction != Action.Explode || value is null)
+				{
+					mostRecentAction = value;
+				}
+			}
+		}
+
 		private GameSettings gameSettings;
 		private Map map;
 		private MapUtils mapUtils;
@@ -66,7 +82,7 @@ namespace PaintBot
 
 			cancellationTokenSource = new CancellationTokenSource();
 			paintBot.GameStartingEvent += OnGameStarting;
-			paintBot.MapUpdatedEvent += OnMapUpdated;
+			paintBot.MapUpdatedEvent = OnMapUpdated;
 			paintBotTask = paintBot.Run(cancellationTokenSource.Token);
 
 			base.LoadContent();
@@ -88,10 +104,56 @@ namespace PaintBot
 			mapUtils = null;
 		}
 
-		private void OnMapUpdated(MapUpdated mapUpdated)
+		private async Task<Action> OnMapUpdated(MapUpdated mapUpdated, CancellationToken ct)
 		{
 			map = mapUpdated.Map;
 			mapUtils = new MapUtils(map);
+
+			await Task.Delay(Math.Max((int)Math.Round(gameSettings.TimeInMsPerTick * 0.9f), 100), ct);
+			Action returnAction = mostRecentAction ?? Action.Stay;
+			mostRecentAction = null;
+			return returnAction;
+		}
+
+		protected override void Update(GameTime gameTime)
+		{
+			KeyboardState keyboardState = Keyboard.GetState();
+			GamePadState gamePadState = GamePad.GetState(0);
+
+			if ((keyboardState.IsKeyDown(Keys.Space) && lastKeyboardState?.IsKeyDown(Keys.Space) != true) ||
+				(gamePadState.IsButtonDown(Buttons.A) && lastGamePadState?.IsButtonDown(Buttons.A) != true))
+			{
+				MostRecentAction = Action.Explode;
+			}
+			else if (keyboardState.IsKeyDown(Keys.A) || keyboardState.IsKeyDown(Keys.Left) ||
+				gamePadState.IsButtonDown(Buttons.DPadLeft) || gamePadState.IsButtonDown(Buttons.LeftThumbstickLeft))
+			{
+				MostRecentAction = Action.Left;
+			}
+			else if (keyboardState.IsKeyDown(Keys.D) || keyboardState.IsKeyDown(Keys.Right) ||
+				gamePadState.IsButtonDown(Buttons.DPadRight) || gamePadState.IsButtonDown(Buttons.LeftThumbstickRight))
+			{
+				MostRecentAction = Action.Right;
+			}
+			else if (keyboardState.IsKeyDown(Keys.W) || keyboardState.IsKeyDown(Keys.Up) ||
+				gamePadState.IsButtonDown(Buttons.DPadUp) || gamePadState.IsButtonDown(Buttons.LeftThumbstickUp))
+			{
+				MostRecentAction = Action.Up;
+			}
+			else if (keyboardState.IsKeyDown(Keys.S) || keyboardState.IsKeyDown(Keys.Down) ||
+				gamePadState.IsButtonDown(Buttons.DPadDown) || gamePadState.IsButtonDown(Buttons.LeftThumbstickDown))
+			{
+				MostRecentAction = Action.Down;
+			}
+			else
+			{
+				MostRecentAction = Action.Stay;
+			}
+
+			lastKeyboardState = keyboardState;
+			lastGamePadState = gamePadState;
+
+			base.Update(gameTime);
 		}
 
 		protected override void Draw(GameTime gameTime)
@@ -198,7 +260,7 @@ namespace PaintBot
 		{
 			cancellationTokenSource.Cancel();
 			paintBot.GameStartingEvent -= OnGameStarting;
-			paintBot.MapUpdatedEvent -= OnMapUpdated;
+			paintBot.MapUpdatedEvent = null;
 			paintBotTask.Dispose();
 
 			base.UnloadContent();
