@@ -7,6 +7,7 @@
 
 	public interface IPaintBotClient
 	{
+		bool IsOpen { get; }
 		Task ConnectAsync(GameMode gameMode, CancellationToken ct);
 		Task SendAsync<T>(T message, CancellationToken ct);
 		Task<T> ReceiveAsync<T>(CancellationToken ct) where T : class;

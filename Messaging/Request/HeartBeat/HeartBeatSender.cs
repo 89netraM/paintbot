@@ -23,7 +23,7 @@
 					await Task.Delay(DefaultHeartbeatPeriodInSeconds * 1000, ct);
 				}
 				catch (TaskCanceledException) { }
-				if (!ct.IsCancellationRequested)
+				if (!ct.IsCancellationRequested && _paintBotClient.IsOpen)
 				{
 					var heartBeatRequest = new HeartBeatRequest(playerId);
 					await _paintBotClient.SendAsync(heartBeatRequest, CancellationToken.None);

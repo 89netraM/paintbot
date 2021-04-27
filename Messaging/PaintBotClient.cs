@@ -25,6 +25,8 @@ namespace PaintBot.Messaging
 			} // TODO: Should we move this out of the client to make the it less aware of the messages?
 		};
 
+		public bool IsOpen { get; private set; } = false;
+
 		public PaintBotClient(PaintBotServerConfig config)
 		{
 			_config = config;
@@ -35,6 +37,7 @@ namespace PaintBot.Messaging
 		{
 			var uri = new Uri($"{_config.BaseUrl}/{gameMode.ToString().ToLower()}");
 			await _clientWebSocket.ConnectAsync(uri, ct);
+			IsOpen = true;
 		}
 
 		public async Task SendAsync<T>(T message, CancellationToken ct)
@@ -85,6 +88,7 @@ namespace PaintBot.Messaging
 		public void Close()
 		{
 			_clientWebSocket.Dispose(); // What do we think about disposing this here?
+			IsOpen = false;
 		}
 	}
 }
