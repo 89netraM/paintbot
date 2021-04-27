@@ -80,7 +80,7 @@
 				GameStarting gameStarting => OnGameStarting(gameStarting),
 				GameResult gameResult => OnInfoEvent(gameResult),
 				CharacterStunned characterStunned => OnInfoEvent(characterStunned),
-				HeartBeatResponse heartBeatResponse => OnHearBeatEvent(heartBeatResponse),
+				HeartBeatResponse heartBeatResponse => OnHearBeatEvent(heartBeatResponse, ct),
 				GameEnded gameEnded => OnGameEnded(gameEnded),
 				TournamentEnded tournamentEnded => OnTournamentEnded(tournamentEnded),
 				InvalidPlayerName invalidPlayerName => OnInfoEvent(invalidPlayerName),
@@ -98,7 +98,7 @@
 		private async Task OnPlayerRegistered(PlayerRegistered playerRegistered, CancellationToken ct)
 		{
 			_playerId = playerRegistered.ReceivingPlayerId;
-			SendHearBeat();
+			SendHearBeat(ct);
 			await _paintBotClient.SendAsync(new StartGame(playerRegistered.ReceivingPlayerId), ct);
 			await _paintBotClient.SendAsync(new ClientInfo("C#", "9", Environment.OSVersion?.Platform.ToString(), Environment.OSVersion?.VersionString, "1", playerRegistered.ReceivingPlayerId), ct);
 			_logger.Information(playerRegistered.ToString());
@@ -154,10 +154,10 @@
 			return Task.CompletedTask;
 		}
 
-		private Task OnHearBeatEvent(HeartBeatResponse heartBeat)
+		private Task OnHearBeatEvent(HeartBeatResponse heartBeat, CancellationToken ct)
 		{
 			_logger.Information(heartBeat.ToString());
-			SendHearBeat();
+			SendHearBeat(ct);
 			return Task.CompletedTask;
 		}
 
@@ -195,9 +195,9 @@
 			return !_hasTournamentEnded;
 		}
 
-		private void SendHearBeat()
+		private void SendHearBeat(CancellationToken ct)
 		{
-			_heartBeatSender.SendHeartBeatFrom(_playerId);
+			_heartBeatSender.SendHeartBeatFrom(_playerId, ct);
 		}
 	}
 }

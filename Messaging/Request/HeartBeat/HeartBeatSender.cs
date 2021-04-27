@@ -1,6 +1,7 @@
 ﻿namespace PaintBot.Messaging.Request.HeartBeat
 {
 	using System.Threading;
+	using System.Threading.Tasks;
 
 	public class HeartBeatSender : IHearBeatSender
 	{
@@ -12,14 +13,21 @@
 			_paintBotClient = paintBotClient;
 		}
 
-		public void SendHeartBeatFrom(string playerId)
+		public void SendHeartBeatFrom(string playerId, CancellationToken ct)
 		{
 			new Thread(async () =>
 			{
 				Thread.CurrentThread.IsBackground = true;
-				Thread.Sleep(DefaultHeartbeatPeriodInSeconds * 1000);
-				var heartBeatRequest = new HeartBeatRequest(playerId);
-				await _paintBotClient.SendAsync(heartBeatRequest, CancellationToken.None);
+				try
+				{
+					await Task.Delay(DefaultHeartbeatPeriodInSeconds * 1000, ct);
+				}
+				catch (TaskCanceledException) { }
+				if (!ct.IsCancellationRequested)
+				{
+					var heartBeatRequest = new HeartBeatRequest(playerId);
+					await _paintBotClient.SendAsync(heartBeatRequest, CancellationToken.None);
+				}
 			}).Start();
 		}
 	}
