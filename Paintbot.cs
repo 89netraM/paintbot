@@ -26,7 +26,7 @@
 		private string _playerId;
 		private string gameUrl;
 
-		protected GameSettings GameSettings { get; private set; }
+		public GameSettings GameSettings { get; private set; }
 
 		public event System.Action<GameStarting> GameStartingEvent;
 		public System.Func<MapUpdated, CancellationToken, Task<Action>> MapUpdatedEvent;
