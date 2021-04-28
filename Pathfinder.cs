@@ -6,31 +6,32 @@ namespace PaintBot
 	using Game.Map;
 	using Priority_Queue;
 
+	public record Path(Action FirstStep, MapCoordinate Target, int Length);
+
 	public static class Pathfinder
 	{
 		private static readonly IReadOnlyList<Action> directions = new[] { Action.Left, Action.Right, Action.Up, Action.Down };
 
-		public static IEnumerable<Action> FindPath(MyPaintBot paintBot, System.Func<MapCoordinate, bool> condition)
+		public static Path FindPath(MyPaintBot paintBot, System.Func<MapCoordinate, bool> condition)
 		{
 			if (condition.Invoke(paintBot.PlayerCoordinate))
 			{
-				return Enumerable.Empty<Action>();
+				return null;
 			}
 
-			Dictionary<MapCoordinate, Action?> directionTo = new Dictionary<MapCoordinate, Action?>();
-			SimplePriorityQueue<(MapCoordinate, float), float> toTest = new SimplePriorityQueue<(MapCoordinate, float), float>();
+			ISet<MapCoordinate> visited = new HashSet<MapCoordinate>();
+			SimplePriorityQueue<(Path, float), float> toTest = new SimplePriorityQueue<(Path, float), float>();
 
-			directionTo.Add(paintBot.PlayerCoordinate, null);
-			toTest.Enqueue((paintBot.PlayerCoordinate, 0.0f), 0.0f);
+			toTest.Enqueue((new Path(Action.Stay, paintBot.PlayerCoordinate, 0), 0.0f), 0.0f);
 
 			while (toTest.Count > 0)
 			{
-				var (from, fromSteps) = toTest.Dequeue();
+				var ((firstStep, from, length), fromSteps) = toTest.Dequeue();
 				bool wasInRangeOfOther = IsInRangeOfOther(paintBot, from);
 				foreach (Action direction in directions.OrderBy(_ => paintBot.Random.NextDouble()))
 				{
 					MapCoordinate to = from.MoveIn(direction);
-					if (!directionTo.ContainsKey(to) &&
+					if (!visited.Contains(to) &&
 						paintBot.MapUtils.IsMovementPossibleTo(to) &&
 						!IsTooCloseToOther(paintBot, to) &&
 						(wasInRangeOfOther || !IsInRangeOfOther(paintBot, to)))
@@ -45,12 +46,13 @@ namespace PaintBot
 						{
 							cost += 0.25f;
 						}
-						directionTo.Add(to, direction);
+						Path path = new Path(firstStep != Action.Stay ? firstStep : direction, to, length + 1);
 						if (condition.Invoke(to))
 						{
-							return BuildPath(directionTo, to);
+							return path;
 						}
-						toTest.Enqueue((to, fromSteps + cost), fromSteps + cost);
+						visited.Add(to);
+						toTest.Enqueue((path, fromSteps + cost), fromSteps + cost);
 					}
 				}
 			}
@@ -76,27 +78,5 @@ namespace PaintBot
 					paintBot.GameSettings.ExplosionRange
 			);
 		}
-
-		private static IEnumerable<Action> BuildPath(IReadOnlyDictionary<MapCoordinate, Action?> directionTo, MapCoordinate to)
-		{
-			if (directionTo.TryGetValue(to, out Action? direction) && direction.HasValue)
-			{
-				IEnumerable<Action> directions = BuildPath(directionTo, to.MoveIn(Reverse(direction.Value)));
-				return directions.Append(direction.Value);
-			}
-			else
-			{
-				return Enumerable.Empty<Action>();
-			}
-		}
-
-		private static Action Reverse(Action forward) => forward switch
-		{
-			Action.Left => Action.Right,
-			Action.Right => Action.Left,
-			Action.Up => Action.Down,
-			Action.Down => Action.Up,
-			_ => throw new System.Exception()
-		};
 	}
 }

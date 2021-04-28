@@ -17,8 +17,8 @@
 		public int IsLosingEnemy { get; private set; } = 0;
 
 		private long closestEnemyPathCache = -1;
-		private Action[] closestEnemyPath = null;
-		public Action[] ClosestEnemyPath
+		private Path closestEnemyPath = null;
+		public Path ClosestEnemyPath
 		{
 			get
 			{
@@ -27,7 +27,7 @@
 					closestEnemyPath = Pathfinder.FindPath(
 						this,
 						c => EnemyCoordinates.Any(ec => c.GetManhattanDistanceTo(ec) < GameSettings.ExplosionRange)
-					)?.ToArray();
+					);
 					closestEnemyPathCache = Map.WorldTick;
 				}
 				return closestEnemyPath;
@@ -35,8 +35,8 @@
 		}
 
 		private long closestPowerUpPathCache = -1;
-		private Action[] closestPowerUpPath = null;
-		public Action[] ClosestPowerUpPath
+		private Path closestPowerUpPath = null;
+		public Path ClosestPowerUpPath
 		{
 			get
 			{
@@ -45,7 +45,7 @@
 					closestPowerUpPath = Pathfinder.FindPath(
 						this,
 						c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))
-					)?.ToArray();
+					);
 					closestPowerUpPathCache = Map.WorldTick;
 				}
 				return closestPowerUpPath;
@@ -80,8 +80,8 @@
 					}
 					else
 					{
-						Action[] enemyPath = ClosestEnemyPath;
-						if (enemyPath is not null && enemyPath.Length > 0)
+						Path enemyPath = ClosestEnemyPath;
+						if (enemyPath is not null)
 						{
 							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
 							{
@@ -92,16 +92,16 @@
 								IsLosingEnemy = 0;
 							}
 							DistanceToEnemy = enemyPath.Length;
-							yield return enemyPath[0];
+							yield return enemyPath.FirstStep;
 							continue;
 						}
 					}
 				}
 
-				Action[] powerUpPath = ClosestPowerUpPath;
-				if (powerUpPath is not null && powerUpPath.Length > 0)
+				Path powerUpPath = ClosestPowerUpPath;
+				if (powerUpPath is not null)
 				{
-					yield return powerUpPath.First();
+					yield return powerUpPath.FirstStep;
 				}
 				else
 				{
@@ -124,14 +124,14 @@
 		private Action GetRandomDirection()
 		{
 			// Go towards the closest coordinate not coloured by this player
-			IEnumerable<Action> path = Pathfinder.FindPath(
+			Path path = Pathfinder.FindPath(
 				this,
 				c => !PlayerColouredCoordinates.Contains(c) &&
 					CountCloseNonPlayerColoured(c, 1) >= 2
 			);
-			if (path is not null && path.Any())
+			if (path is not null)
 			{
-				return path.First();
+				return path.FirstStep;
 			}
 			else
 			{
