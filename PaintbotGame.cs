@@ -33,7 +33,7 @@ namespace PaintBot
 
 		private Texture2D tile;
 		private Texture2D player;
-		private Texture2D playerPoweredUp;
+		private Texture2D stunned;
 		private Texture2D powerUp;
 		private Queue<(Color, Color)> availbleColours;
 		private Dictionary<string, (Color tile, Color player)> characterColour;
@@ -77,7 +77,7 @@ namespace PaintBot
 
 			tile = Content.Load<Texture2D>("tile");
 			player = Content.Load<Texture2D>("player");
-			playerPoweredUp = Content.Load<Texture2D>("playerPoweredUp");
+			stunned = Content.Load<Texture2D>("stunned");
 			powerUp = Content.Load<Texture2D>("powerUp");
 
 			cancellationTokenSource = new CancellationTokenSource();
@@ -158,13 +158,24 @@ namespace PaintBot
 
 		protected override void Draw(GameTime gameTime)
 		{
-			GraphicsDevice.Clear(Color.White);
+			GraphicsDevice.Clear(Color.Black);
 
 			if (map is not null && mapUtils is not null)
 			{
 				spriteBatch.Begin();
 				var (size, offset) = CalculateSizeAndOffset();
 				int sizeI = (int)Math.Ceiling(size);
+
+				spriteBatch.Draw(
+					tile,
+					new Rectangle(
+						(int)Math.Floor(offset.x),
+						(int)Math.Floor(offset.y),
+						(int)Math.Ceiling(GraphicsDevice.Viewport.Width - offset.x * 2.0f),
+						(int)Math.Ceiling(GraphicsDevice.Viewport.Height - offset.y * 2.0f)
+					),
+					Color.White
+				);
 
 				foreach (MapCoordinate coordinate in map.ObstaclePositions.Select(mapUtils.GetCoordinateFrom))
 				{
@@ -219,7 +230,7 @@ namespace PaintBot
 				{
 					MapCoordinate coordinate = mapUtils.GetCoordinateFrom(character.Position);
 					spriteBatch.Draw(
-						character.CarryingPowerUp ? playerPoweredUp : player,
+						player,
 						new Rectangle(
 							(int)Math.Round(offset.x + coordinate.X * size),
 							(int)Math.Round(offset.y + coordinate.Y * size),
@@ -228,6 +239,37 @@ namespace PaintBot
 						),
 						characterColour[character.Id].player
 					);
+					if (character.CarryingPowerUp)
+					{
+						spriteBatch.Draw(
+							powerUp,
+							new Rectangle(
+								(int)Math.Round(offset.x + coordinate.X * size + size / 2.0f),
+								(int)Math.Round(offset.y + coordinate.Y * size + size / 2.0f),
+								sizeI / 2,
+								sizeI / 2
+							),
+							Color.White
+						);
+					}
+					if (character.StunnedForGameTicks > 0)
+					{
+						spriteBatch.Draw(
+							stunned,
+							new Rectangle(
+								(int)Math.Round(offset.x + coordinate.X * size + size / 2.0f),
+								(int)Math.Round(offset.y + coordinate.Y * size + size / 2.0f),
+								sizeI,
+								sizeI
+							),
+							null,
+							Color.White,
+							(float)gameTime.TotalGameTime.TotalSeconds * 2.0f,
+							stunned.Bounds.Size.ToVector2() / 2.0f,
+							SpriteEffects.None,
+							0.0f
+						);
+					}
 				}
 
 				spriteBatch.End();
