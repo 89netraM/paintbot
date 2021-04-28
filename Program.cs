@@ -12,7 +12,7 @@
 
 	public class Program
 	{
-		public static void Main(string[] args)
+		public static Task Main(string[] args)
 		{
 			Console.OutputEncoding = System.Text.Encoding.UTF8;
 			Console.CursorVisible = false;
@@ -21,8 +21,17 @@
 			var serviceProvider = services.BuildServiceProvider();
 			var myBot = new MyPaintBot(config, serviceProvider.GetService<IPaintBotClient>(),
 				serviceProvider.GetService<IHearBeatSender>(), serviceProvider.GetService<ILogger>());
-			using var game = new PaintBotGame(myBot);
-			game.Run();
+
+			if (config.VisualMode == VisualMode.GUI)
+			{
+				using var game = new PaintBotGame(myBot);
+				game.Run();
+				return Task.CompletedTask;
+			}
+			else
+			{
+				return myBot.Run(CancellationToken.None);
+			}
 		}
 
 		private static void ConfigureLogger(IServiceCollection services)
@@ -53,7 +62,7 @@
 
 			var couldParseGameMode = Enum.TryParse<GameMode>(unparsedGameMode, out var gameMode);
 			var couldParseGameLength = int.TryParse(unparsedGameLengthInSeconds, out var gameLengthInSeconds);
-			var couldParseShouldWriteMap = bool.TryParse(unparsedShouldWriteMap, out bool shouldWriteMap);
+			var couldParseVisualMode = Enum.TryParse<VisualMode>(unparsedShouldWriteMap, out var visualMode);
 
 			if (!couldParseGameMode)
 			{
@@ -63,8 +72,12 @@
 			{
 				gameLengthInSeconds = 180;
 			}
+			if (!couldParseGameMode)
+			{
+				visualMode = VisualMode.None;
+			}
 
-			return new PaintBotConfig(name, gameMode, gameLengthInSeconds, shouldWriteMap);
+			return new PaintBotConfig(name, gameMode, gameLengthInSeconds, visualMode);
 		}
 	}
 }

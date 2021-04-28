@@ -12,7 +12,6 @@
 
 	public class MyPaintBot : StatePaintBot
 	{
-		public readonly System.Random Random;
 		public int? DistanceToEnemy { get; private set; } = null;
 		public int IsLosingEnemy { get; private set; } = 0;
 
@@ -57,8 +56,6 @@
 		{
 			GameMode = paintBotConfig.GameMode;
 			Name = paintBotConfig.Name ?? "My c# bot";
-
-			Random = new System.Random();
 		}
 
 		public override GameMode GameMode { get; }

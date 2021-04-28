@@ -32,37 +32,26 @@ namespace PaintBot
 		private SpriteBatch spriteBatch;
 
 		private Texture2D tile;
+		private Texture2D tileHovering;
+		private Texture2D tileSelected;
 		private Texture2D player;
 		private Texture2D stunned;
 		private Texture2D powerUp;
 		private Queue<(Color, Color)> availbleColours;
 		private Dictionary<string, (Color tile, Color player)> characterColour;
 
-		private PaintBot paintBot;
+		private StatePaintBot paintBot;
 		private CancellationTokenSource cancellationTokenSource;
 		private Task paintBotTask;
 
-		private KeyboardState? lastKeyboardState = null;
-		private GamePadState? lastGamePadState = null;
-		private Action? mostRecentAction = null;
-		private Action? MostRecentAction
-		{
-			get => mostRecentAction;
-			set
-			{
-				if (mostRecentAction != Action.Explode || value is null)
-				{
-					mostRecentAction = value;
-				}
-			}
-		}
+		private MouseState? lastMouseState = null;
+		private MapCoordinate mouseCoordinate = null;
 
 		private GameSettings gameSettings;
 		private Map map;
 		private MapUtils mapUtils;
-		private bool reRender = false;
 
-		public PaintBotGame(PaintBot paintBot)
+		public PaintBotGame(StatePaintBot paintBot)
 		{
 			graphics = new GraphicsDeviceManager(this);
 			this.paintBot = paintBot;
@@ -76,13 +65,15 @@ namespace PaintBot
 			spriteBatch = new SpriteBatch(GraphicsDevice);
 
 			tile = Content.Load<Texture2D>("tile");
+			tileHovering = Content.Load<Texture2D>("tileHovering");
+			tileSelected = Content.Load<Texture2D>("tileSelected");
 			player = Content.Load<Texture2D>("player");
 			stunned = Content.Load<Texture2D>("stunned");
 			powerUp = Content.Load<Texture2D>("powerUp");
 
 			cancellationTokenSource = new CancellationTokenSource();
 			paintBot.GameStartingEvent += OnGameStarting;
-			paintBot.MapUpdatedEvent = OnMapUpdated;
+			paintBot.MapUpdatedEvent += OnMapUpdated;
 			paintBotTask = paintBot.Run(cancellationTokenSource.Token);
 
 			base.LoadContent();
@@ -104,54 +95,32 @@ namespace PaintBot
 			mapUtils = null;
 		}
 
-		private async Task<Action> OnMapUpdated(MapUpdated mapUpdated, CancellationToken ct)
+		private void OnMapUpdated(MapUpdated mapUpdated)
 		{
 			map = mapUpdated.Map;
 			mapUtils = new MapUtils(map);
-
-			await Task.Delay(Math.Max((int)Math.Round(gameSettings.TimeInMsPerTick * 0.9f), 100), ct);
-			Action returnAction = mostRecentAction ?? Action.Stay;
-			mostRecentAction = null;
-			return returnAction;
 		}
 
 		protected override void Update(GameTime gameTime)
 		{
-			KeyboardState keyboardState = Keyboard.GetState();
-			GamePadState gamePadState = GamePad.GetState(0);
+			MouseState mouseState = Mouse.GetState();
 
-			if ((keyboardState.IsKeyDown(Keys.Space) && lastKeyboardState?.IsKeyDown(Keys.Space) != true) ||
-				(gamePadState.IsButtonDown(Buttons.A) && lastGamePadState?.IsButtonDown(Buttons.A) != true))
+			if (map is not null && mapUtils is not null)
 			{
-				MostRecentAction = Action.Explode;
-			}
-			else if (keyboardState.IsKeyDown(Keys.A) || keyboardState.IsKeyDown(Keys.Left) ||
-				gamePadState.IsButtonDown(Buttons.DPadLeft) || gamePadState.IsButtonDown(Buttons.LeftThumbstickLeft))
-			{
-				MostRecentAction = Action.Left;
-			}
-			else if (keyboardState.IsKeyDown(Keys.D) || keyboardState.IsKeyDown(Keys.Right) ||
-				gamePadState.IsButtonDown(Buttons.DPadRight) || gamePadState.IsButtonDown(Buttons.LeftThumbstickRight))
-			{
-				MostRecentAction = Action.Right;
-			}
-			else if (keyboardState.IsKeyDown(Keys.W) || keyboardState.IsKeyDown(Keys.Up) ||
-				gamePadState.IsButtonDown(Buttons.DPadUp) || gamePadState.IsButtonDown(Buttons.LeftThumbstickUp))
-			{
-				MostRecentAction = Action.Up;
-			}
-			else if (keyboardState.IsKeyDown(Keys.S) || keyboardState.IsKeyDown(Keys.Down) ||
-				gamePadState.IsButtonDown(Buttons.DPadDown) || gamePadState.IsButtonDown(Buttons.LeftThumbstickDown))
-			{
-				MostRecentAction = Action.Down;
-			}
-			else
-			{
-				MostRecentAction = Action.Stay;
+				var (size, offset) = CalculateSizeAndOffset();
+				MapCoordinate coordinate = new MapCoordinate(
+					(int)Math.Round((mouseState.X - offset.x - size / 2.0f) / size),
+					(int)Math.Round((mouseState.Y - offset.y - size / 2.0f) / size)
+				);
+				mouseCoordinate = mapUtils.IsMovementPossibleTo(coordinate) ? coordinate : null;
+
+				if (mouseState.LeftButton == ButtonState.Released && lastMouseState?.LeftButton != ButtonState.Released)
+				{
+					paintBot.OverrideTarget = mouseCoordinate;
+				}
 			}
 
-			lastKeyboardState = keyboardState;
-			lastGamePadState = gamePadState;
+			lastMouseState = mouseState;
 
 			base.Update(gameTime);
 		}
@@ -212,6 +181,32 @@ namespace PaintBot
 							colour
 						);
 					}
+				}
+				if (mouseCoordinate is not null)
+				{
+					spriteBatch.Draw(
+						tileHovering,
+						new Rectangle(
+							(int)Math.Round(offset.x + mouseCoordinate.X * size),
+							(int)Math.Round(offset.y + mouseCoordinate.Y * size),
+							sizeI,
+							sizeI
+						),
+						Color.White
+					);
+				}
+				if (paintBot.OverrideTarget is not null)
+				{
+					spriteBatch.Draw(
+						tileSelected,
+						new Rectangle(
+							(int)Math.Round(offset.x + paintBot.OverrideTarget.X * size),
+							(int)Math.Round(offset.y + paintBot.OverrideTarget.Y * size),
+							sizeI,
+							sizeI
+						),
+						Color.White
+					);
 				}
 				foreach (MapCoordinate coordinate in map.PowerUpPositions.Select(mapUtils.GetCoordinateFrom))
 				{
@@ -302,7 +297,7 @@ namespace PaintBot
 		{
 			cancellationTokenSource.Cancel();
 			paintBot.GameStartingEvent -= OnGameStarting;
-			paintBot.MapUpdatedEvent = null;
+			paintBot.MapUpdatedEvent -= OnMapUpdated;
 			paintBotTask.Dispose();
 
 			base.UnloadContent();

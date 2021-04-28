@@ -12,6 +12,7 @@ namespace PaintBot
 
 	public abstract class StatePaintBot : PaintBot
 	{
+		public System.Random Random { get; }
 		public Map Map { get; private set; }
 		public string PlayerId { get; private set; }
 		public MapUtils MapUtils { get; private set; }
@@ -96,11 +97,15 @@ namespace PaintBot
 			}
 		}
 
+		public MapCoordinate OverrideTarget { get; set; } = null;
+
 		private IEnumerator<Action> currentActionSequence;
 
 		protected StatePaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, heartBeatSender, logger)
-		{ }
+		{
+			Random = new System.Random();
+		}
 
 		public override Action GetAction(MapUpdated mapUpdated)
 		{
@@ -115,6 +120,24 @@ namespace PaintBot
 			}
 
 			return currentActionSequence.Current;
+		}
+
+		public override Action? GetOverrideAction()
+		{
+			if (OverrideTarget is not null)
+			{
+				Path path = Pathfinder.FindPath(this, OverrideTarget.Equals);
+				if (path is not null)
+				{
+					return path.FirstStep;
+				}
+				else
+				{
+					OverrideTarget = null;
+				}
+			}
+
+			return null;
 		}
 
 		protected abstract IEnumerable<Action> GetActionSequence();

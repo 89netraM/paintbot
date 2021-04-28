@@ -12,7 +12,7 @@ namespace PaintBot
 	{
 		private static readonly IReadOnlyList<Action> directions = new[] { Action.Left, Action.Right, Action.Up, Action.Down };
 
-		public static Path FindPath(MyPaintBot paintBot, System.Func<MapCoordinate, bool> condition)
+		public static Path FindPath(StatePaintBot paintBot, System.Func<MapCoordinate, bool> condition)
 		{
 			if (condition.Invoke(paintBot.PlayerCoordinate))
 			{
@@ -60,7 +60,7 @@ namespace PaintBot
 			return null;
 		}
 
-		private static bool IsTooCloseToOther(MyPaintBot paintBot, MapCoordinate coordinate)
+		private static bool IsTooCloseToOther(StatePaintBot paintBot, MapCoordinate coordinate)
 		{
 			return paintBot.Map.CharacterInfos.Any(ci =>
 				ci.Id != paintBot.PlayerId &&
@@ -68,7 +68,7 @@ namespace PaintBot
 				paintBot.MapUtils.GetCoordinateFrom(ci.Position).GetManhattanDistanceTo(coordinate) <= 1
 			);
 		}
-		private static bool IsInRangeOfOther(MyPaintBot paintBot, MapCoordinate coordinate)
+		private static bool IsInRangeOfOther(StatePaintBot paintBot, MapCoordinate coordinate)
 		{
 			return paintBot.Map.CharacterInfos.Any(ci =>
 				ci.Id != paintBot.PlayerId &&

@@ -18,8 +18,9 @@
 		private readonly IHearBeatSender _heartBeatSender;
 		private readonly ILogger _logger;
 		private readonly AnsiPrinter ansiPrinter = new AnsiPrinter();
-		private readonly bool shouldWriteMap;
+		private readonly VisualMode visualMode;
 		private readonly int _gameLengthInSeconds;
+		private readonly Stopwatch stopwatch = new Stopwatch();
 
 		private bool _hasGameEnded;
 		private bool _hasTournamentEnded;
@@ -29,7 +30,7 @@
 		public GameSettings GameSettings { get; private set; }
 
 		public event System.Action<GameStarting> GameStartingEvent;
-		public System.Func<MapUpdated, CancellationToken, Task<Action>> MapUpdatedEvent;
+		public event System.Action<MapUpdated> MapUpdatedEvent;
 
 
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
@@ -37,13 +38,14 @@
 			_paintBotClient = paintBotClient;
 			_heartBeatSender = heartBeatSender;
 			_logger = logger;
-			this.shouldWriteMap = paintBotConfig.ShouldWriteMap;
+			visualMode = paintBotConfig.VisualMode;
 			_gameLengthInSeconds = paintBotConfig.GameLengthInSeconds;
 		}
 
 		public abstract GameMode GameMode { get; }
 		public abstract string Name { get; }
 		public abstract Action GetAction(MapUpdated mapUpdated);
+		public virtual Action? GetOverrideAction() => null;
 
 		public async Task Run(CancellationToken ct)
 		{
@@ -109,7 +111,11 @@
 
 		private async Task OnMapUpdated(MapUpdated mapUpdated, CancellationToken ct)
 		{
-			if (shouldWriteMap)
+			if (visualMode == VisualMode.GUI)
+			{
+				stopwatch.Restart();
+			}
+			if (visualMode == VisualMode.Ansi)
 			{
 				ansiPrinter.SetupPlayers(mapUpdated.ReceivingPlayerId, mapUpdated.Map.CharacterInfos);
 				System.Console.Write($"\x1b[s\x1b[0;0H{ansiPrinter.WriteMap(mapUpdated.Map)}\x1b[0m\x1b[u");
@@ -118,7 +124,14 @@
 			{
 				_logger.Information($"{mapUpdated}");
 			}
-			var action = await MapUpdatedEvent?.Invoke(mapUpdated, ct);
+			MapUpdatedEvent?.Invoke(mapUpdated);
+			var action = GetAction(mapUpdated);
+			if (visualMode == VisualMode.GUI)
+			{
+				stopwatch.Stop();
+				await Task.Delay((int)Math.Round(GameSettings.TimeInMsPerTick * 0.95f - stopwatch.ElapsedMilliseconds), ct);
+			}
+			action = GetOverrideAction() ?? action;
 			await _paintBotClient.SendAsync(
 				new RegisterMove(mapUpdated.ReceivingPlayerId)
 				{
