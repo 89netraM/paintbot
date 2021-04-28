@@ -12,6 +12,45 @@
 
 	public class MyPaintBot : StatePaintBot
 	{
+		public int? DistanceToEnemy { get; private set; } = null;
+		public int IsLosingEnemy { get; private set; } = 0;
+
+		private long closestEnemyPathCache = -1;
+		private Path closestEnemyPath = null;
+		public Path ClosestEnemyPath
+		{
+			get
+			{
+				if (closestEnemyPathCache != Map.WorldTick)
+				{
+					closestEnemyPath = Pathfinder.FindPath(
+						this,
+						c => EnemyCoordinates.Any(ec => c.GetManhattanDistanceTo(ec) < GameSettings.ExplosionRange)
+					);
+					closestEnemyPathCache = Map.WorldTick;
+				}
+				return closestEnemyPath;
+			}
+		}
+
+		private long closestPowerUpPathCache = -1;
+		private Path closestPowerUpPath = null;
+		public Path ClosestPowerUpPath
+		{
+			get
+			{
+				if (closestPowerUpPathCache != Map.WorldTick)
+				{
+					closestPowerUpPath = Pathfinder.FindPath(
+						this,
+						c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))
+					);
+					closestPowerUpPathCache = Map.WorldTick;
+				}
+				return closestPowerUpPath;
+			}
+		}
+
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, hearBeatSender, logger)
 		{
@@ -25,80 +64,75 @@
 
 		protected override IEnumerable<Action> GetActionSequence()
 		{
-			while (true) {
-				// Implement your bot here!
-
-				// The following is a simple example bot. It tries to
-				// 1. Explode PowerUp
-				// 2. Move to a tile that it is not currently owning
-				// 3. Move in the direction where it can move for the longest time.
-
-				var directions = new List<Action> { Action.Down, Action.Right, Action.Left, Action.Up };
-
-				var myCharacter = MapUtils.GetCharacterInfoFor(PlayerId);
-				var myCoordinate = MapUtils.GetCoordinateFrom(myCharacter.Position);
-				var myColouredTiles = MapUtils.GetCoordinatesFrom(myCharacter.ColouredPositions);
-
-				if (myCharacter.CarryingPowerUp)
+			while (true)
+			{
+				if (PlayerInfo.CarryingPowerUp)
 				{
-					yield return Action.Explode;
-					continue;
+					if (ShouldExplode())
+					{
+						yield return Action.Explode;
+						DistanceToEnemy = null;
+						IsLosingEnemy = 0;
+						continue;
+					}
+					else
+					{
+						Path enemyPath = ClosestEnemyPath;
+						if (enemyPath is not null)
+						{
+							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
+							{
+								IsLosingEnemy++;
+							}
+							else
+							{
+								IsLosingEnemy = 0;
+							}
+							DistanceToEnemy = enemyPath.Length;
+							yield return enemyPath.FirstStep;
+							continue;
+						}
+					}
 				}
 
-				var validActionsThatPaintsNotOwnedTile = directions.Where(dir =>
-					!myColouredTiles.Contains(myCoordinate.MoveIn(dir)) && MapUtils.IsMovementPossibleTo(myCoordinate.MoveIn(dir))).ToList();
-
-				if (validActionsThatPaintsNotOwnedTile.Any())
+				Path powerUpPath = ClosestPowerUpPath;
+				if (powerUpPath is not null)
 				{
-					yield return validActionsThatPaintsNotOwnedTile.First();
-					continue;
+					yield return powerUpPath.FirstStep;
 				}
-
-				var possibleLeftMoves = 0;
-				var possibleRightMoves = 0;
-				var possibleUpMoves = 0;
-				var possibleDownMoves = 0;
-
-				var testCoordinate = MapUtils.GetCoordinateFrom(myCharacter.Position).MoveIn(Action.Left);
-				while (MapUtils.IsMovementPossibleTo(testCoordinate))
+				else
 				{
-					possibleLeftMoves++;
-					testCoordinate = testCoordinate.MoveIn(Action.Left);
+					yield return GetRandomDirection();
 				}
+			}
+		}
 
-				testCoordinate = MapUtils.GetCoordinateFrom(myCharacter.Position).MoveIn(Action.Right);
-				while (MapUtils.IsMovementPossibleTo(testCoordinate))
-				{
-					possibleRightMoves++;
-					testCoordinate = testCoordinate.MoveIn(Action.Right);
-				}
+		private bool ShouldExplode() =>
+			Map.WorldTick == TotalGameTicks - 2 ||
+			(IsLosingEnemy >= 10 &&
+				PointsForUseOfPowerUp() >= (GameSettings.ExplosionRange + 1.0) * (GameSettings.ExplosionRange * 0.5) * 4 / 2
+			) ||
+			ClosestPowerUpPath?.Length <= 2 ||
+			Map.CharacterInfos.Any(ci =>
+				ci.Id != PlayerId &&
+				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) < GameSettings.ExplosionRange
+			);
 
-				testCoordinate = MapUtils.GetCoordinateFrom(myCharacter.Position).MoveIn(Action.Up);
-				while (MapUtils.IsMovementPossibleTo(testCoordinate))
-				{
-					possibleUpMoves++;
-					testCoordinate = testCoordinate.MoveIn(Action.Up);
-				}
-
-				testCoordinate = MapUtils.GetCoordinateFrom(myCharacter.Position).MoveIn(Action.Down);
-				while (MapUtils.IsMovementPossibleTo(testCoordinate))
-				{
-					possibleDownMoves++;
-					testCoordinate = testCoordinate.MoveIn(Action.Down);
-				}
-
-				var list = new List<(Action, int)>
-				{
-					(Action.Left, possibleLeftMoves),
-					(Action.Right, possibleRightMoves),
-					(Action.Up, possibleUpMoves),
-					(Action.Down, possibleDownMoves)
-				};
-
-				list.Sort((first, second) => first.Item2.CompareTo(second.Item2));
-				list.Reverse();
-
-				yield return list.FirstOrDefault(l => l.Item2 > 0).Item1;
+		private Action GetRandomDirection()
+		{
+			// Go towards the closest coordinate not coloured by this player
+			Path path = Pathfinder.FindPath(
+				this,
+				c => !PlayerColouredCoordinates.Contains(c) &&
+					CountCloseNonPlayerColoured(c, 1) >= 2
+			);
+			if (path is not null)
+			{
+				return path.FirstStep;
+			}
+			else
+			{
+				return Action.Stay;
 			}
 		}
 	}

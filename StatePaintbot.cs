@@ -12,12 +12,13 @@ namespace PaintBot
 
 	public abstract class StatePaintBot : PaintBot
 	{
-		protected Map Map { get; private set; }
-		protected string PlayerId { get; private set; }
-		protected MapUtils MapUtils { get; private set; }
+		public System.Random Random { get; }
+		public Map Map { get; private set; }
+		public string PlayerId { get; private set; }
+		public MapUtils MapUtils { get; private set; }
 
 		private long? totalGameTicks = null;
-		protected long TotalGameTicks
+		public long TotalGameTicks
 		{
 			get
 			{
@@ -35,7 +36,7 @@ namespace PaintBot
 
 		private long playerInfoCache = -1;
 		private CharacterInfo playerInfo = null;
-		protected CharacterInfo PlayerInfo
+		public CharacterInfo PlayerInfo
 		{
 			get
 			{
@@ -50,7 +51,7 @@ namespace PaintBot
 
 		private long playerCoordinateCache = -1;
 		private MapCoordinate playerCoordinate = null;
-		protected MapCoordinate PlayerCoordinate
+		public MapCoordinate PlayerCoordinate
 		{
 			get
 			{
@@ -65,7 +66,7 @@ namespace PaintBot
 
 		private long playerColouredCoordinatesCache = -1;
 		private MapCoordinate[] playerColouredCoordinates = null;
-		protected MapCoordinate[] PlayerColouredCoordinates
+		public MapCoordinate[] PlayerColouredCoordinates
 		{
 			get
 			{
@@ -96,11 +97,15 @@ namespace PaintBot
 			}
 		}
 
+		public MapCoordinate OverrideTarget { get; set; } = null;
+
 		private IEnumerator<Action> currentActionSequence;
 
 		protected StatePaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, heartBeatSender, logger)
-		{ }
+		{
+			Random = new System.Random();
+		}
 
 		public override Action GetAction(MapUpdated mapUpdated)
 		{
@@ -115,6 +120,24 @@ namespace PaintBot
 			}
 
 			return currentActionSequence.Current;
+		}
+
+		public override Action? GetOverrideAction()
+		{
+			if (OverrideTarget is not null)
+			{
+				Path path = Pathfinder.FindPath(this, OverrideTarget.Equals);
+				if (path is not null)
+				{
+					return path.FirstStep;
+				}
+				else
+				{
+					OverrideTarget = null;
+				}
+			}
+
+			return null;
 		}
 
 		protected abstract IEnumerable<Action> GetActionSequence();

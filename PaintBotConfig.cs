@@ -4,17 +4,17 @@
 
 	public class PaintBotConfig
 	{
-		public PaintBotConfig(string name, GameMode gameMode, int gameLengthInSeconds, bool shouldWriteMap)
+		public PaintBotConfig(string name, GameMode gameMode, int gameLengthInSeconds, VisualMode visualMode)
 		{
 			Name = name;
 			GameMode = gameMode;
 			GameLengthInSeconds = gameLengthInSeconds;
-			ShouldWriteMap = shouldWriteMap;
+			VisualMode = visualMode;
 		}
 
 		public GameMode GameMode { get; }
 		public int GameLengthInSeconds { get; }
 		public string Name { get; }
-		public bool ShouldWriteMap { get; }
+		public VisualMode VisualMode { get; }
 	}
 }
