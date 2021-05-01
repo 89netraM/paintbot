@@ -47,6 +47,7 @@ namespace PaintBot
 		private Task paintBotTask;
 
 		private MouseState? lastMouseState = null;
+		private KeyboardState? lastKeyboardState = null;
 		private MapCoordinate mouseCoordinate = null;
 
 		private GameSettings gameSettings;
@@ -107,6 +108,7 @@ namespace PaintBot
 		protected override void Update(GameTime gameTime)
 		{
 			MouseState mouseState = Mouse.GetState();
+			KeyboardState keyboardState = Keyboard.GetState();
 
 			if (map is not null && mapUtils is not null)
 			{
@@ -121,9 +123,15 @@ namespace PaintBot
 				{
 					paintBot.OverrideTarget = mouseCoordinate;
 				}
+
+				if (keyboardState.IsKeyDown(Keys.Space) && lastKeyboardState?.IsKeyDown(Keys.Space) != true)
+				{
+					paintBot.ForceExplode = true;
+				}
 			}
 
 			lastMouseState = mouseState;
+			lastKeyboardState = keyboardState;
 
 			base.Update(gameTime);
 		}
