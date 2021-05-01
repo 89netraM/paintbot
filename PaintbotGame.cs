@@ -37,14 +37,17 @@ namespace PaintBot
 		private Texture2D player;
 		private Texture2D stunned;
 		private Texture2D powerUp;
+		private SpriteFont cascadiaMono;
 		private Queue<(Color, Color)> availbleColours;
 		private Dictionary<string, (Color tile, Color player)> characterColour;
+		private int uiWidth = 0;
 
 		private StatePaintBot paintBot;
 		private CancellationTokenSource cancellationTokenSource;
 		private Task paintBotTask;
 
 		private MouseState? lastMouseState = null;
+		private KeyboardState? lastKeyboardState = null;
 		private MapCoordinate mouseCoordinate = null;
 
 		private GameSettings gameSettings;
@@ -70,6 +73,7 @@ namespace PaintBot
 			player = Content.Load<Texture2D>("player");
 			stunned = Content.Load<Texture2D>("stunned");
 			powerUp = Content.Load<Texture2D>("powerUp");
+			cascadiaMono = Content.Load<SpriteFont>("cascadiaMono");
 
 			cancellationTokenSource = new CancellationTokenSource();
 			paintBot.GameStartingEvent += OnGameStarting;
@@ -104,6 +108,7 @@ namespace PaintBot
 		protected override void Update(GameTime gameTime)
 		{
 			MouseState mouseState = Mouse.GetState();
+			KeyboardState keyboardState = Keyboard.GetState();
 
 			if (map is not null && mapUtils is not null)
 			{
@@ -118,9 +123,15 @@ namespace PaintBot
 				{
 					paintBot.OverrideTarget = mouseCoordinate;
 				}
+
+				if (keyboardState.IsKeyDown(Keys.Space) && lastKeyboardState?.IsKeyDown(Keys.Space) != true)
+				{
+					paintBot.ForceExplode = true;
+				}
 			}
 
 			lastMouseState = mouseState;
+			lastKeyboardState = keyboardState;
 
 			base.Update(gameTime);
 		}
@@ -131,22 +142,107 @@ namespace PaintBot
 
 			if (map is not null && mapUtils is not null)
 			{
-				spriteBatch.Begin();
-				var (size, offset) = CalculateSizeAndOffset();
-				int sizeI = (int)Math.Ceiling(size);
+				foreach (CharacterInfo character in map.CharacterInfos)
+				{
+					if (!characterColour.ContainsKey(character.Id))
+					{
+						characterColour[character.Id] = availbleColours.Dequeue();
+					}
+				}
 
+				spriteBatch.Begin();
+				DrawUI(gameTime);
+				DrawArena(gameTime);
+				spriteBatch.End();
+			}
+
+			base.Draw(gameTime);
+		}
+
+		private void DrawUI(GameTime gameTime)
+		{
+			uiWidth = 0;
+			IDictionary<string, float> characterPointsWidth = new Dictionary<string, float>();
+			foreach (CharacterInfo ci in map.CharacterInfos)
+			{
+				uiWidth = Math.Max((int)Math.Ceiling(cascadiaMono.MeasureString($"{ci.Name}:").X), uiWidth);
+				Vector2 pointsSize = cascadiaMono.MeasureString(ci.Points.ToString());
+				uiWidth = Math.Max((int)Math.Ceiling(pointsSize.X), uiWidth);
+				characterPointsWidth[ci.Id] = pointsSize.X;
+			}
+			const int uiSpacing = 5;
+			uiWidth += uiSpacing * 2;
+
+			int uiTop = uiSpacing;
+			int uiCardHeight = cascadiaMono.LineSpacing * 2 + uiSpacing * 2;
+			foreach (CharacterInfo ci in map.CharacterInfos.OrderByDescending(ci => ci.Points))
+			{
 				spriteBatch.Draw(
 					tile,
 					new Rectangle(
-						(int)Math.Floor(offset.x),
-						(int)Math.Floor(offset.y),
-						(int)Math.Ceiling(GraphicsDevice.Viewport.Width - offset.x * 2.0f),
-						(int)Math.Ceiling(GraphicsDevice.Viewport.Height - offset.y * 2.0f)
+						uiSpacing,
+						uiTop,
+						uiWidth,
+						uiCardHeight
+					),
+					characterColour[ci.Id].tile
+				);
+				spriteBatch.DrawString(
+					cascadiaMono,
+					$"{ci.Name}:",
+					new Vector2(
+						uiSpacing * 2,
+						uiTop + uiSpacing
 					),
 					Color.White
 				);
+				spriteBatch.DrawString(
+					cascadiaMono,
+					ci.Points.ToString(),
+					new Vector2(
+						uiWidth - uiSpacing * 2 - characterPointsWidth[ci.Id],
+						uiTop + uiSpacing + cascadiaMono.LineSpacing
+					),
+					Color.White
+				);
+				uiTop += uiCardHeight + uiSpacing;
+			}
 
-				foreach (MapCoordinate coordinate in map.ObstaclePositions.Select(mapUtils.GetCoordinateFrom))
+			uiWidth += uiSpacing * 2;
+		}
+
+		private void DrawArena(GameTime gameTime)
+		{
+			var (size, offset) = CalculateSizeAndOffset();
+			int sizeI = (int)Math.Ceiling(size);
+
+			spriteBatch.Draw(
+				tile,
+				new Rectangle(
+					(int)Math.Floor(offset.x),
+					(int)Math.Floor(offset.y),
+					(int)Math.Ceiling(GraphicsDevice.Viewport.Width + uiWidth - offset.x * 2.0f),
+					(int)Math.Ceiling(GraphicsDevice.Viewport.Height - offset.y * 2.0f)
+				),
+				Color.White
+			);
+
+			foreach (MapCoordinate coordinate in map.ObstaclePositions.Select(mapUtils.GetCoordinateFrom))
+			{
+				spriteBatch.Draw(
+					tile,
+					new Rectangle(
+						(int)Math.Round(offset.x + coordinate.X * size),
+						(int)Math.Round(offset.y + coordinate.Y * size),
+						sizeI,
+						sizeI
+					),
+					Color.Black
+				);
+			}
+			foreach (CharacterInfo character in map.CharacterInfos)
+			{
+				foreach (MapCoordinate coordinate in character.ColouredPositions.Select(mapUtils.GetCoordinateFrom))
 				{
 					spriteBatch.Draw(
 						tile,
@@ -156,139 +252,113 @@ namespace PaintBot
 							sizeI,
 							sizeI
 						),
-						Color.Black
+						characterColour[character.Id].tile
 					);
 				}
-				foreach (CharacterInfo character in map.CharacterInfos)
-				{
-					(Color tile, Color player) colourPair;
-					if (!characterColour.TryGetValue(character.Id, out colourPair))
-					{
-						colourPair = availbleColours.Dequeue();
-						characterColour[character.Id] = colourPair;
-					}
-					Color colour = colourPair.tile;
-					foreach (MapCoordinate coordinate in character.ColouredPositions.Select(mapUtils.GetCoordinateFrom))
-					{
-						spriteBatch.Draw(
-							tile,
-							new Rectangle(
-								(int)Math.Round(offset.x + coordinate.X * size),
-								(int)Math.Round(offset.y + coordinate.Y * size),
-								sizeI,
-								sizeI
-							),
-							colour
-						);
-					}
-				}
-				if (mouseCoordinate is not null)
-				{
-					spriteBatch.Draw(
-						tileHovering,
-						new Rectangle(
-							(int)Math.Round(offset.x + mouseCoordinate.X * size),
-							(int)Math.Round(offset.y + mouseCoordinate.Y * size),
-							sizeI,
-							sizeI
-						),
-						Color.White
-					);
-				}
-				if (paintBot.OverrideTarget is not null)
-				{
-					spriteBatch.Draw(
-						tileSelected,
-						new Rectangle(
-							(int)Math.Round(offset.x + paintBot.OverrideTarget.X * size),
-							(int)Math.Round(offset.y + paintBot.OverrideTarget.Y * size),
-							sizeI,
-							sizeI
-						),
-						Color.White
-					);
-				}
-				foreach (MapCoordinate coordinate in map.PowerUpPositions.Select(mapUtils.GetCoordinateFrom))
+			}
+			if (mouseCoordinate is not null)
+			{
+				spriteBatch.Draw(
+					tileHovering,
+					new Rectangle(
+						(int)Math.Round(offset.x + mouseCoordinate.X * size),
+						(int)Math.Round(offset.y + mouseCoordinate.Y * size),
+						sizeI,
+						sizeI
+					),
+					Color.White
+				);
+			}
+			if (paintBot.OverrideTarget is not null)
+			{
+				spriteBatch.Draw(
+					tileSelected,
+					new Rectangle(
+						(int)Math.Round(offset.x + paintBot.OverrideTarget.X * size),
+						(int)Math.Round(offset.y + paintBot.OverrideTarget.Y * size),
+						sizeI,
+						sizeI
+					),
+					Color.White
+				);
+			}
+			foreach (MapCoordinate coordinate in map.PowerUpPositions.Select(mapUtils.GetCoordinateFrom))
+			{
+				spriteBatch.Draw(
+					powerUp,
+					new Rectangle(
+						(int)Math.Round(offset.x + coordinate.X * size),
+						(int)Math.Round(offset.y + coordinate.Y * size),
+						sizeI,
+						sizeI
+					),
+					Color.White
+				);
+			}
+			foreach (CharacterInfo character in map.CharacterInfos)
+			{
+				MapCoordinate coordinate = mapUtils.GetCoordinateFrom(character.Position);
+				spriteBatch.Draw(
+					player,
+					new Rectangle(
+						(int)Math.Round(offset.x + coordinate.X * size),
+						(int)Math.Round(offset.y + coordinate.Y * size),
+						sizeI,
+						sizeI
+					),
+					characterColour[character.Id].player
+				);
+				if (character.CarryingPowerUp)
 				{
 					spriteBatch.Draw(
 						powerUp,
 						new Rectangle(
-							(int)Math.Round(offset.x + coordinate.X * size),
-							(int)Math.Round(offset.y + coordinate.Y * size),
-							sizeI,
-							sizeI
+							(int)Math.Round(offset.x + coordinate.X * size + size / 2.0f),
+							(int)Math.Round(offset.y + coordinate.Y * size + size / 2.0f),
+							sizeI / 2,
+							sizeI / 2
 						),
 						Color.White
 					);
 				}
-				foreach (CharacterInfo character in map.CharacterInfos)
+				if (character.StunnedForGameTicks > 0)
 				{
-					MapCoordinate coordinate = mapUtils.GetCoordinateFrom(character.Position);
 					spriteBatch.Draw(
-						player,
+						stunned,
 						new Rectangle(
-							(int)Math.Round(offset.x + coordinate.X * size),
-							(int)Math.Round(offset.y + coordinate.Y * size),
+							(int)Math.Round(offset.x + coordinate.X * size + size / 2.0f),
+							(int)Math.Round(offset.y + coordinate.Y * size + size / 2.0f),
 							sizeI,
 							sizeI
 						),
-						characterColour[character.Id].player
+						null,
+						Color.White,
+						(float)gameTime.TotalGameTime.TotalSeconds * 2.0f,
+						stunned.Bounds.Size.ToVector2() / 2.0f,
+						SpriteEffects.None,
+						0.0f
 					);
-					if (character.CarryingPowerUp)
-					{
-						spriteBatch.Draw(
-							powerUp,
-							new Rectangle(
-								(int)Math.Round(offset.x + coordinate.X * size + size / 2.0f),
-								(int)Math.Round(offset.y + coordinate.Y * size + size / 2.0f),
-								sizeI / 2,
-								sizeI / 2
-							),
-							Color.White
-						);
-					}
-					if (character.StunnedForGameTicks > 0)
-					{
-						spriteBatch.Draw(
-							stunned,
-							new Rectangle(
-								(int)Math.Round(offset.x + coordinate.X * size + size / 2.0f),
-								(int)Math.Round(offset.y + coordinate.Y * size + size / 2.0f),
-								sizeI,
-								sizeI
-							),
-							null,
-							Color.White,
-							(float)gameTime.TotalGameTime.TotalSeconds * 2.0f,
-							stunned.Bounds.Size.ToVector2() / 2.0f,
-							SpriteEffects.None,
-							0.0f
-						);
-					}
 				}
-
-				spriteBatch.End();
 			}
-
-			base.Draw(gameTime);
 		}
 
 		private (float size, (float x, float y) offset) CalculateSizeAndOffset()
 		{
-			if (GraphicsDevice.Viewport.AspectRatio > map.Width / (float)map.Height)
+			float availbleWidth = GraphicsDevice.Viewport.Width - uiWidth;
+			if (availbleWidth / (float)GraphicsDevice.Viewport.Height > map.Width / (float)map.Height)
 			{
 				float size = GraphicsDevice.Viewport.Height / (float)map.Height;
 				return (
 					size,
-					((GraphicsDevice.Viewport.Width - map.Width * size) / 2.0f, 0.0f)
+					(uiWidth + (availbleWidth - map.Width * size) / 2.0f, 0.0f)
 				);
 			}
 			else
 			{
-				float size = GraphicsDevice.Viewport.Width / (float)map.Width;
+				float size = availbleWidth / (float)map.Width;
 				return (
 					size,
-					(0.0f, (GraphicsDevice.Viewport.Height - map.Height * size) / 2.0f)
+					((float)uiWidth, (GraphicsDevice.Viewport.Height - map.Height * size) / 2.0f)
 				);
 			}
 		}

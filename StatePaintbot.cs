@@ -98,6 +98,7 @@ namespace PaintBot
 		}
 
 		public MapCoordinate OverrideTarget { get; set; } = null;
+		public bool ForceExplode { get; set; } = false;
 
 		private IEnumerator<Action> currentActionSequence;
 
@@ -124,6 +125,15 @@ namespace PaintBot
 
 		public override Action? GetOverrideAction()
 		{
+			if (currentActionSequence.Current == Action.Explode)
+			{
+				OverrideTarget = null;
+			}
+			if (ForceExplode) {
+				ForceExplode = false;
+				OverrideTarget = null;
+				return Action.Explode;
+			}
 			if (OverrideTarget is not null)
 			{
 				Path path = Pathfinder.FindPath(this, OverrideTarget.Equals);
