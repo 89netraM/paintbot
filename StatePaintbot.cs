@@ -34,6 +34,19 @@ namespace PaintBot
 			}
 		}
 
+		private MapCoordinate[] obstacleCoordinates = null;
+		public MapCoordinate[] ObstacleCoordinates
+		{
+			get
+			{
+				if (obstacleCoordinates is null)
+				{
+					obstacleCoordinates = MapUtils.GetObstacleCoordinates();
+				}
+				return obstacleCoordinates;
+			}
+		}
+
 		private long playerInfoCache = -1;
 		private CharacterInfo playerInfo = null;
 		public CharacterInfo PlayerInfo
@@ -164,7 +177,7 @@ namespace PaintBot
 					if (x != 0 || y != 0)
 					{
 						MapCoordinate coordinate = new MapCoordinate(center.X + x, center.Y + y);
-						if (MapUtils.IsMovementPossibleTo(coordinate))
+						if (!MapUtils.IsCoordinateOutOfBounds(coordinate) && !ObstacleCoordinates.Contains(coordinate))
 						{
 							yield return coordinate;
 						}
