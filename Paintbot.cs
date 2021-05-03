@@ -129,7 +129,11 @@
 			if (visualMode == VisualMode.GUI)
 			{
 				stopwatch.Stop();
-				await Task.Delay((int)Math.Round(GameSettings.TimeInMsPerTick * 0.95f - stopwatch.ElapsedMilliseconds), ct);
+				int additionalWaitTime = (int)Math.Round(GameSettings.TimeInMsPerTick * 0.55f - stopwatch.ElapsedMilliseconds);
+				if (additionalWaitTime > 0)
+				{
+					await Task.Delay(additionalWaitTime, ct);
+				}
 			}
 			action = GetOverrideAction() ?? action;
 			await _paintBotClient.SendAsync(
