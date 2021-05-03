@@ -1,12 +1,13 @@
 namespace PaintBot
 {
 	using System.Collections.Generic;
+	using System.Collections.Immutable;
 	using System.Linq;
 	using Game.Action;
 	using Game.Map;
 	using Priority_Queue;
 
-	public record Path(Action FirstStep, MapCoordinate Target, int Length);
+	public record Path(Action FirstStep, MapCoordinate Target, IImmutableList<MapCoordinate> Coordinates);
 
 	public static class Pathfinder
 	{
@@ -31,11 +32,11 @@ namespace PaintBot
 			ISet<MapCoordinate> visited = new HashSet<MapCoordinate>();
 			SimplePriorityQueue<(Path, float), float> toTest = new SimplePriorityQueue<(Path, float), float>();
 
-			toTest.Enqueue((new Path(Action.Stay, paintBot.PlayerCoordinate, 0), 0.0f), 0.0f);
+			toTest.Enqueue((new Path(Action.Stay, paintBot.PlayerCoordinate, ImmutableList.Create<MapCoordinate>()), 0.0f), 0.0f);
 
 			while (toTest.Count > 0)
 			{
-				var ((firstStep, from, length), fromSteps) = toTest.Dequeue();
+				var ((firstStep, from, coordinates), fromSteps) = toTest.Dequeue();
 				bool wasInRangeOfOther = IsInRangeOfOther(paintBot, from);
 				foreach (Action direction in directions.OrderBy(_ => paintBot.Random.NextDouble()))
 				{
@@ -47,7 +48,7 @@ namespace PaintBot
 						(wasInRangeOfOther || !IsInRangeOfOther(paintBot, to)))
 					{
 						float cost = 1.0f - paintBot.CalculatePointsAt(to) / 8.0f + 0.125f;
-						Path path = new Path(firstStep != Action.Stay ? firstStep : direction, to, length + 1);
+						Path path = new Path(firstStep != Action.Stay ? firstStep : direction, to, coordinates.Add(to));
 						if (condition.Invoke(to))
 						{
 							return path;
