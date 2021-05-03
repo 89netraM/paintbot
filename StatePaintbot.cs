@@ -142,10 +142,14 @@ namespace PaintBot
 			{
 				OverrideTarget = null;
 			}
-			if (ForceExplode) {
+			if (ForceExplode)
+			{
 				ForceExplode = false;
-				OverrideTarget = null;
-				return Action.Explode;
+				if (PlayerInfo.CarryingPowerUp)
+				{
+					OverrideTarget = null;
+					return Action.Explode;
+				}
 			}
 			if (OverrideTarget is not null)
 			{
