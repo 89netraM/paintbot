@@ -19,6 +19,15 @@ namespace PaintBot
 				return null;
 			}
 
+			HashSet<MapCoordinate> otherColouredCoordinates = paintBot.Map.CharacterInfos
+				.Where(ci => ci.Id != paintBot.PlayerId)
+				.SelectMany(ci => ci.ColouredPositions.Select(paintBot.MapUtils.GetCoordinateFrom))
+				.ToHashSet();
+			HashSet<MapCoordinate> leaderColouredCoordinates = paintBot.Map.CharacterInfos
+				.Where(ci => ci.Id != paintBot.PlayerId && ci.Points >= paintBot.PlayerInfo.Points)
+				.SelectMany(ci => ci.ColouredPositions.Select(paintBot.MapUtils.GetCoordinateFrom))
+				.ToHashSet();
+
 			ISet<MapCoordinate> visited = new HashSet<MapCoordinate>();
 			SimplePriorityQueue<(Path, float), float> toTest = new SimplePriorityQueue<(Path, float), float>();
 
@@ -40,6 +49,14 @@ namespace PaintBot
 						if (paintBot.PlayerColouredCoordinates.Contains(to))
 						{
 							cost += 0.25f;
+						}
+						if (otherColouredCoordinates.Contains(to))
+						{
+							cost -= 0.25f;
+						}
+						if (leaderColouredCoordinates.Contains(to))
+						{
+							cost -= 0.25f;
 						}
 						if (to.X == 0 || to.X == paintBot.Map.Width - 1 ||
 							to.Y == 0 || to.Y == paintBot.Map.Height - 1)
