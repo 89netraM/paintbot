@@ -34,6 +34,8 @@
 					PlayerInfo.CarryingPowerUp &&
 					Map.CharacterInfos.Any(ci =>
 						ci.Id != PlayerId &&
+						ci.CarryingPowerUp &&
+						ci.StunnedForGameTicks == 0 &&
 						PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <=
 							GameSettings.ExplosionRange
 					) ? Action.Explode : a
