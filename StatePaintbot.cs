@@ -9,9 +9,13 @@ namespace PaintBot
 	using Messaging.Request.HeartBeat;
 	using Messaging.Response;
 	using Serilog;
+	using System.Diagnostics;
 
 	public abstract class StatePaintBot : PaintBot
 	{
+		private Stopwatch stopwatch = new Stopwatch();
+		private ICollection<long> times = new List<long>();
+
 		public System.Random Random { get; }
 		public Map Map { get; private set; }
 		public string PlayerId { get; private set; }
@@ -114,6 +118,9 @@ namespace PaintBot
 			}
 		}
 
+		private Dictionary<MapCoordinate, int> pointsAtCoordinate = null;
+		public IReadOnlyDictionary<MapCoordinate, int> PointsAtCoordinate => pointsAtCoordinate;
+
 		public MapCoordinate OverrideTarget { get; set; } = null;
 		public ISet<MapCoordinate> Disallowed { get; } = new HashSet<MapCoordinate>();
 		public bool ForceExplode { get; set; } = false;
@@ -131,11 +138,17 @@ namespace PaintBot
 			Map = mapUpdated.Map;
 			PlayerId = mapUpdated.ReceivingPlayerId;
 			MapUtils = new MapUtils(Map);
+			UpdatePointsDictionary();
 
 			if (currentActionSequence is null || !currentActionSequence.MoveNext())
 			{
 				currentActionSequence = GetActionSequence().GetEnumerator();
 				currentActionSequence.MoveNext();
+			}
+
+			if (times.Count > 0)
+			{
+				System.Console.WriteLine($"Time average: {times.Average()} ms");
 			}
 
 			return currentActionSequence.Current;
@@ -172,6 +185,64 @@ namespace PaintBot
 			return null;
 		}
 
+		private void UpdatePointsDictionary()
+		{
+			if (pointsAtCoordinate is null)
+			{
+				pointsAtCoordinate = new Dictionary<MapCoordinate, int>(Map.Width * Map.Height);
+				// Standard points for empty coordinates
+				for (int y = 0; y < Map.Height; y++)
+				{
+					for (int x = 0; x < Map.Width; x++)
+					{
+						MapCoordinate coordinate = new MapCoordinate(x, y);
+						if (!ObstacleCoordinates.Contains(coordinate))
+						{
+							pointsAtCoordinate.Add(coordinate, GameSettings.PointsPerTileOwned);
+						}
+					}
+				}
+				// Zero points for player coordinate
+				pointsAtCoordinate[PlayerCoordinate] = 0;
+				// Stun points for enemy coordinates
+				foreach (MapCoordinate coordinate in EnemyCoordinates)
+				{
+					pointsAtCoordinate[coordinate] = GameSettings.PointsPerCausedStun;
+				}
+			}
+			else
+			{
+				// Coloured by the player (old playerCoordinate!)
+				pointsAtCoordinate[playerCoordinate] = 0;
+				// Coloured by an enemy (old enemyCoordinates!)
+				foreach (MapCoordinate coordinate in enemyCoordinates)
+				{
+					pointsAtCoordinate[coordinate] = GameSettings.PointsPerTileOwned * 2;
+				}
+				// Coloured by explosion
+				foreach (ExplosionInfo explosionInfo in Map.ExplosionInfos)
+				{
+					MapCoordinate coordinate = MapUtils.GetCoordinateFrom(explosionInfo.Position);
+					if (!explosionInfo.Exploders.Contains(PlayerId) ||
+						!PlayerColouredCoordinates.Contains(coordinate))
+					{
+						pointsAtCoordinate[coordinate] = GameSettings.PointsPerTileOwned * 2;
+					}
+					else
+					{
+						pointsAtCoordinate[coordinate] = 0;
+					}
+				}
+				// Player coordinate (new playerCoordinate!)
+				pointsAtCoordinate[PlayerCoordinate] = 0;
+				// Enemy coordinate (new enemyCoordinates!)
+				foreach (MapCoordinate coordinate in EnemyCoordinates)
+				{
+					pointsAtCoordinate[coordinate] = GameSettings.PointsPerCausedStun;
+				}
+			}
+		}
+
 		protected abstract IEnumerable<Action> GetActionSequence();
 
 		public IEnumerable<MapCoordinate> CoordinatesInManhattanRange() => CoordinatesInManhattanRange(GameSettings.ExplosionRange);
@@ -203,35 +274,8 @@ namespace PaintBot
 
 		public int PointsForUseOfPowerUp() => PointsForUseOfPowerUp(GameSettings.ExplosionRange);
 		public int PointsForUseOfPowerUp(int range) => PointsForUseOfPowerUp(PlayerCoordinate, range);
-		public int PointsForUseOfPowerUp(MapCoordinate center, int range)
-		{
-			// Coordinates coloured by other players with more or equal amount
-			// of points
-			HashSet<MapCoordinate> leaderColouredCoordinates = Map.CharacterInfos
-				.Where(ci => ci.Id != PlayerId && ci.Points >= PlayerInfo.Points)
-				.SelectMany(ci => ci.ColouredPositions.Select(MapUtils.GetCoordinateFrom))
-				.ToHashSet();
-
-			return CoordinatesInManhattanRange(center, range)
-				.Sum(coordinate =>
-				{
-					if (MapUtils.GetTileAt(coordinate) == Tile.Character)
-					{
-						return GameSettings.PointsPerCausedStun;
-					}
-					else if (leaderColouredCoordinates.Contains(coordinate))
-					{
-						return GameSettings.PointsPerTileOwned * 2;
-					}
-					else if (!PlayerColouredCoordinates.Contains(coordinate))
-					{
-						return GameSettings.PointsPerTileOwned;
-					}
-					else
-					{
-						return 0;
-					}
-				});
-		}
+		public int PointsForUseOfPowerUp(MapCoordinate center, int range) =>
+			CoordinatesInManhattanRange(center, range)
+				.Sum(PointsAtCoordinate.GetValueOrDefault);
 	}
 }
