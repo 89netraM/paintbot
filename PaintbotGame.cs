@@ -188,11 +188,24 @@ namespace PaintBot
 
 		private void DrawUI(GameTime gameTime)
 		{
+			const string timeLabel = "Time:";
+			int timeSeconds = (int)Math.Round(gameSettings.GameDurationInSeconds - map.WorldTick * gameSettings.TimeInMsPerTick / 1000.0f);
+			string timeString = $"{timeSeconds / 60:d2}:{timeSeconds % 60:d2}";
+			float timeStringWidth = cascadiaMono.MeasureString(timeString).X;
 			const string timingLabel = "Tick time:";
 			string timingString = $"{tickTime} ms";
 			float timingStringWidth = cascadiaMono.MeasureString(timingString).X;
 
-			uiWidth = (int)Math.Ceiling(cascadiaMono.MeasureString(timingLabel).X);
+			uiWidth = (int)Math.Ceiling(Math.Max(
+				Math.Max(
+					cascadiaMono.MeasureString(timeLabel).X,
+					timeStringWidth
+				),
+				Math.Max(
+					cascadiaMono.MeasureString(timingLabel).X,
+					timingStringWidth
+				)
+			));
 			IDictionary<string, float> characterPointsWidth = new Dictionary<string, float>();
 			foreach (CharacterInfo ci in map.CharacterInfos)
 			{
@@ -241,6 +254,24 @@ namespace PaintBot
 
 			uiWidth += uiSpacing * 2;
 
+			spriteBatch.DrawString(
+				cascadiaMono,
+				timeLabel,
+				new Vector2(
+					uiSpacing * 2,
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 4 + uiSpacing)
+				),
+				Color.White
+			);
+			spriteBatch.DrawString(
+				cascadiaMono,
+				timeString,
+				new Vector2(
+					uiWidth - uiSpacing * 2 - timeStringWidth,
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 3 + uiSpacing)
+				),
+				Color.White
+			);
 			spriteBatch.DrawString(
 				cascadiaMono,
 				timingLabel,
