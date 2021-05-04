@@ -218,9 +218,13 @@ namespace PaintBot
 					{
 						return GameSettings.PointsPerTileOwned * 2;
 					}
-					else
+					else if (!PlayerColouredCoordinates.Contains(coordinate))
 					{
 						return GameSettings.PointsPerTileOwned;
+					}
+					else
+					{
+						return 0;
 					}
 				});
 		}
