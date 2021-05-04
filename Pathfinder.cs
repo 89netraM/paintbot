@@ -13,11 +13,13 @@ namespace PaintBot
 	{
 		private static readonly IReadOnlyList<Action> directions = new[] { Action.Left, Action.Right, Action.Up, Action.Down };
 
-		public static Path FindPath(StatePaintBot paintBot, System.Func<MapCoordinate, bool> condition)
+		public static Path FindPath(StatePaintBot paintBot, System.Func<MapCoordinate, bool> condition) =>
+			FindPath(paintBot, paintBot.PlayerCoordinate, condition);
+		public static Path FindPath(StatePaintBot paintBot, MapCoordinate start, System.Func<MapCoordinate, bool> condition)
 		{
-			if (condition.Invoke(paintBot.PlayerCoordinate))
+			if (condition.Invoke(start))
 			{
-				return null;
+				return new Path(Action.Stay, start, ImmutableList.Create<MapCoordinate>());
 			}
 
 			HashSet<MapCoordinate> otherColouredCoordinates = paintBot.Map.CharacterInfos
@@ -32,7 +34,7 @@ namespace PaintBot
 			ISet<MapCoordinate> visited = new HashSet<MapCoordinate>();
 			SimplePriorityQueue<(Path, float), float> toTest = new SimplePriorityQueue<(Path, float), float>();
 
-			toTest.Enqueue((new Path(Action.Stay, paintBot.PlayerCoordinate, ImmutableList.Create<MapCoordinate>()), 0.0f), 0.0f);
+			toTest.Enqueue((new Path(Action.Stay, start, ImmutableList.Create<MapCoordinate>()), 0.0f), 0.0f);
 
 			while (toTest.Count > 0)
 			{

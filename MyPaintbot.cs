@@ -29,6 +29,15 @@
 			GetPreliminaryActionSequence()
 				// Always explode on the last tick if possible
 				.Select(a => PlayerInfo.CarryingPowerUp && Map.WorldTick == TotalGameTicks - 2 ? Action.Explode : a)
+				// Explode if chased
+				.Select(a =>
+					PlayerInfo.CarryingPowerUp &&
+					Map.CharacterInfos.Any(ci =>
+						ci.Id != PlayerId &&
+						PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <=
+							GameSettings.ExplosionRange
+					) ? Action.Explode : a
+				)
 				// Never do nothing
 				.Select(pa => pa is Action a ? a : GetRandomAction());
 
@@ -60,7 +69,7 @@
 				while (!PlayerInfo.CarryingPowerUp)
 				{
 					if (Map.PowerUpPositions.Length != 0 &&
-						Pathfinder.FindPath(this, c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))) is Path p)
+						Pathfinder.FindPath(this, IsPowerUp) is Path p)
 					{
 						yield return p.FirstStep;
 					}
@@ -69,33 +78,44 @@
 						yield return null;
 					}
 				}
-				// Seek out most valuable path through an "explosion" point to a power-up
+				// Find a nearby "explosion point" and a path to the next power-up
+				TargetInfo target = CoordinatesInManhattanRange(GameSettings.ExplosionRange * 2)
+					.AsParallel()
+					.Select(CalculateCoordinate)
+					.Where(TargetInfoIsValid)
+					.Aggregate(AggregateHighestPointsperStep);
+				Path toPoints = target.PointsPath;
 				while (PlayerInfo.CarryingPowerUp)
 				{
-					if (Map.PowerUpPositions.Length != 0 &&
-						Pathfinder.FindPath(this, c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))) is Path p)
+					if (toPoints?.Coordinates.Count == 0)
 					{
-						if (p.Coordinates.Count == 1 || IsAtBestInPath(p))
-						{
-							yield return Action.Explode;
-						}
-						else
-						{
-							yield return p.FirstStep;
-						}
+						yield return Action.Explode;
+						break;
 					}
 					else
 					{
-						yield return null;
+						yield return toPoints?.FirstStep;
 					}
+					toPoints = Pathfinder.FindPath(this, target.PointsCoordinate.Equals);
 				}
 			}
 		}
 
-		private bool IsAtBestInPath(Path path)
-		{
-			int pointsHere = PointsForUseOfPowerUp(PlayerCoordinate, GameSettings.ExplosionRange);
-			return path.Coordinates.All(c => PointsForUseOfPowerUp(c, GameSettings.ExplosionRange) - GameSettings.ExplosionRange / 2 <= pointsHere);
-		}
+		private bool IsPowerUp(MapCoordinate coordinate) =>
+			Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(coordinate));
+
+		private TargetInfo CalculateCoordinate(MapCoordinate coordinate) =>
+			new TargetInfo(
+				coordinate,
+				PointsForUseOfPowerUp(coordinate, GameSettings.ExplosionRange),
+				Pathfinder.FindPath(this, coordinate.Equals),
+				Pathfinder.FindPath(this, coordinate, IsPowerUp)
+			);
+		private static bool TargetInfoIsValid(TargetInfo targetInfo) =>
+			targetInfo.PointsPath is not null;
+		private static TargetInfo AggregateHighestPointsperStep(TargetInfo accumulated, TargetInfo targetInfo) =>
+			accumulated.Points / (float)(accumulated.PointsPath.Coordinates.Count + (accumulated.PowerUpPath?.Coordinates.Count ?? 0.0f)) <
+				targetInfo.Points / (float)(targetInfo.PointsPath.Coordinates.Count + (targetInfo.PowerUpPath?.Coordinates.Count ?? 0.0f)) ?
+					targetInfo : accumulated;
 	}
 }
