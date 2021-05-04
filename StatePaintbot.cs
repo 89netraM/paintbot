@@ -111,6 +111,7 @@ namespace PaintBot
 		}
 
 		public MapCoordinate OverrideTarget { get; set; } = null;
+		public ISet<MapCoordinate> Disallowed { get; } = new HashSet<MapCoordinate>();
 		public bool ForceExplode { get; set; } = false;
 
 		private IEnumerator<Action> currentActionSequence;

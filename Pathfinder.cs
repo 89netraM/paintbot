@@ -41,6 +41,7 @@ namespace PaintBot
 				{
 					MapCoordinate to = from.MoveIn(direction);
 					if (!visited.Contains(to) &&
+						!paintBot.Disallowed.Contains(to) &&
 						paintBot.MapUtils.IsMovementPossibleTo(to) &&
 						!IsTooCloseToOther(paintBot, to) &&
 						(wasInRangeOfOther || !IsInRangeOfOther(paintBot, to)))
