@@ -127,7 +127,14 @@ namespace PaintBot
 
 				if (mouseState.LeftButton == ButtonState.Released && lastMouseState?.LeftButton != ButtonState.Released)
 				{
-					paintBot.OverrideTarget = mouseCoordinate;
+					if (paintBot.OverrideTarget?.Equals(mouseCoordinate) == true)
+					{
+						paintBot.OverrideTarget = null;
+					}
+					else
+					{
+						paintBot.OverrideTarget = mouseCoordinate;
+					}
 				}
 
 				if (mouseCoordinate is not null &&
