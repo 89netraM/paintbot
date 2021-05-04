@@ -142,7 +142,8 @@
 				Pathfinder.FindPath(this, coordinate, IsPowerUp)
 			);
 		private static bool TargetInfoIsValid(TargetInfo targetInfo) =>
-			targetInfo.PointsPath is not null;
+			targetInfo.PointsPath is not null &&
+			targetInfo.PointsPath.Coordinates.All(c => !c.Equals(targetInfo.PowerUpPath?.Target));
 		private static TargetInfo AggregateHighestPointsperStep(TargetInfo accumulated, TargetInfo targetInfo) =>
 			accumulated.Points / (float)(accumulated.PointsPath.Coordinates.Count + (accumulated.PowerUpPath?.Coordinates.Count ?? 0.0f)) <
 				targetInfo.Points / (float)(targetInfo.PointsPath.Coordinates.Count + (targetInfo.PowerUpPath?.Coordinates.Count ?? 0.0f)) ?
