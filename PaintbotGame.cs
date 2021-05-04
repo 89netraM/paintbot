@@ -55,6 +55,7 @@ namespace PaintBot
 		private Map map;
 		private MapUtils mapUtils;
 		private long tickTime = 0;
+		private long topTickTime = 0;
 
 		public PaintBotGame(StatePaintBot paintBot)
 		{
@@ -109,7 +110,11 @@ namespace PaintBot
 			mapUtils = new MapUtils(map);
 		}
 
-		private void OnTime(long time) => tickTime = time;
+		private void OnTime(long time)
+		{
+			tickTime = time;
+			topTickTime = Math.Max(tickTime, topTickTime);
+		}
 
 		protected override void Update(GameTime gameTime)
 		{
@@ -195,17 +200,18 @@ namespace PaintBot
 			const string timingLabel = "Tick time:";
 			string timingString = $"{tickTime} ms";
 			float timingStringWidth = cascadiaMono.MeasureString(timingString).X;
+			const string topTimingLabel = "Top tick time:";
+			string topTimingString = $"{topTickTime} ms";
+			float topTimingStringWidth = cascadiaMono.MeasureString(topTimingString).X;
 
-			uiWidth = (int)Math.Ceiling(Math.Max(
-				Math.Max(
-					cascadiaMono.MeasureString(timeLabel).X,
-					timeStringWidth
-				),
-				Math.Max(
-					cascadiaMono.MeasureString(timingLabel).X,
-					timingStringWidth
-				)
-			));
+			uiWidth = (int)Math.Ceiling(new[] {
+				cascadiaMono.MeasureString(timeLabel).X,
+				timeStringWidth,
+				cascadiaMono.MeasureString(timingLabel).X,
+				timingStringWidth,
+				cascadiaMono.MeasureString(topTimingLabel).X,
+				topTimingStringWidth
+			}.Max());
 			IDictionary<string, float> characterPointsWidth = new Dictionary<string, float>();
 			foreach (CharacterInfo ci in map.CharacterInfos)
 			{
@@ -259,7 +265,7 @@ namespace PaintBot
 				timeLabel,
 				new Vector2(
 					uiSpacing * 2,
-					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 4 + uiSpacing)
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 6 + uiSpacing)
 				),
 				Color.White
 			);
@@ -268,7 +274,7 @@ namespace PaintBot
 				timeString,
 				new Vector2(
 					uiWidth - uiSpacing * 2 - timeStringWidth,
-					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 3 + uiSpacing)
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 5 + uiSpacing)
 				),
 				Color.White
 			);
@@ -277,7 +283,7 @@ namespace PaintBot
 				timingLabel,
 				new Vector2(
 					uiSpacing * 2,
-					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 2 + uiSpacing)
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 4 + uiSpacing)
 				),
 				Color.White
 			);
@@ -286,7 +292,25 @@ namespace PaintBot
 				timingString,
 				new Vector2(
 					uiWidth - uiSpacing * 2 - timingStringWidth,
-					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing + uiSpacing)
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 3 + uiSpacing)
+				),
+				Color.White
+			);
+			spriteBatch.DrawString(
+				cascadiaMono,
+				topTimingLabel,
+				new Vector2(
+					uiSpacing * 2,
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 2 + uiSpacing)
+				),
+				Color.White
+			);
+			spriteBatch.DrawString(
+				cascadiaMono,
+				topTimingString,
+				new Vector2(
+					uiWidth - uiSpacing * 2 - topTimingStringWidth,
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 1 + uiSpacing)
 				),
 				Color.White
 			);
