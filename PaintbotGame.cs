@@ -208,7 +208,7 @@ namespace PaintBot
 					cascadiaMono,
 					ci.Points.ToString(),
 					new Vector2(
-						uiWidth - uiSpacing * 2 - characterPointsWidth[ci.Id],
+						uiWidth - characterPointsWidth[ci.Id],
 						uiTop + uiSpacing + cascadiaMono.LineSpacing
 					),
 					Color.White
