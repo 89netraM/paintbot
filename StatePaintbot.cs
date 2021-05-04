@@ -80,14 +80,16 @@ namespace PaintBot
 		}
 
 		private long playerColouredCoordinatesCache = -1;
-		private MapCoordinate[] playerColouredCoordinates = null;
-		public MapCoordinate[] PlayerColouredCoordinates
+		private HashSet<MapCoordinate> playerColouredCoordinates = null;
+		public HashSet<MapCoordinate> PlayerColouredCoordinates
 		{
 			get
 			{
 				if (playerColouredCoordinatesCache != Map.WorldTick)
 				{
-					playerColouredCoordinates = MapUtils.GetCoordinatesFrom(PlayerInfo.ColouredPositions);
+					playerColouredCoordinates = PlayerInfo.ColouredPositions
+						.Select(MapUtils.GetCoordinateFrom)
+						.ToHashSet();
 					playerColouredCoordinatesCache = Map.WorldTick;
 				}
 				return playerColouredCoordinates;
