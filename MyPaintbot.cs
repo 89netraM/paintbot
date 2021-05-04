@@ -81,11 +81,7 @@
 					}
 				}
 				// Find a nearby "explosion point" and a path to the next power-up
-				TargetInfo target = CoordinatesInManhattanRange(GameSettings.ExplosionRange * 2)
-					.AsParallel()
-					.Select(CalculateCoordinate)
-					.Where(TargetInfoIsValid)
-					.Aggregate(AggregateHighestPointsperStep);
+				TargetInfo target = FindTarget();
 				Path toPoints = target.PointsPath;
 				while (PlayerInfo.CarryingPowerUp)
 				{
@@ -98,6 +94,10 @@
 					{
 						yield return toPoints?.FirstStep;
 					}
+					if (IsTargetOccupied(target.PointsCoordinate))
+					{
+						target = FindTarget();
+					}
 					toPoints = Pathfinder.FindPath(this, target.PointsCoordinate.Equals);
 				}
 			}
@@ -106,6 +106,34 @@
 		private bool IsPowerUp(MapCoordinate coordinate) =>
 			Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(coordinate));
 
+		private bool IsTargetOccupied(MapCoordinate coordinate) =>
+			Map.CharacterInfos.Any(ci =>
+			{
+				if (ci.Id == PlayerId)
+				{
+					return false;
+				}
+				MapCoordinate characterCoordinate = MapUtils.GetCoordinateFrom(ci.Position);
+				if (ci.StunnedForGameTicks > 0 && characterCoordinate.GetManhattanDistanceTo(coordinate) <= 1)
+				{
+					return true;
+				}
+				else if (ci.CarryingPowerUp && characterCoordinate.GetManhattanDistanceTo(coordinate) < GameSettings.ExplosionRange)
+				{
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			});
+
+		private TargetInfo FindTarget() =>
+			CoordinatesInManhattanRange(GameSettings.ExplosionRange * 2)
+				.AsParallel()
+				.Select(CalculateCoordinate)
+				.Where(TargetInfoIsValid)
+				.Aggregate(AggregateHighestPointsperStep);
 		private TargetInfo CalculateCoordinate(MapCoordinate coordinate) =>
 			new TargetInfo(
 				coordinate,
