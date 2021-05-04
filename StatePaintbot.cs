@@ -9,13 +9,9 @@ namespace PaintBot
 	using Messaging.Request.HeartBeat;
 	using Messaging.Response;
 	using Serilog;
-	using System.Diagnostics;
 
 	public abstract class StatePaintBot : PaintBot
 	{
-		private Stopwatch stopwatch = new Stopwatch();
-		private ICollection<long> times = new List<long>();
-
 		public System.Random Random { get; }
 		public Map Map { get; private set; }
 		public string PlayerId { get; private set; }
@@ -144,11 +140,6 @@ namespace PaintBot
 			{
 				currentActionSequence = GetActionSequence().GetEnumerator();
 				currentActionSequence.MoveNext();
-			}
-
-			if (times.Count > 0)
-			{
-				System.Console.WriteLine($"Time average: {times.Average()} ms");
 			}
 
 			return currentActionSequence.Current;
