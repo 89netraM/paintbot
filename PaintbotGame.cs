@@ -34,6 +34,7 @@ namespace PaintBot
 		private Texture2D tile;
 		private Texture2D tileHovering;
 		private Texture2D tileSelected;
+		private Texture2D cross;
 		private Texture2D player;
 		private Texture2D stunned;
 		private Texture2D powerUp;
@@ -71,6 +72,7 @@ namespace PaintBot
 			tile = Content.Load<Texture2D>("tile");
 			tileHovering = Content.Load<Texture2D>("tileHovering");
 			tileSelected = Content.Load<Texture2D>("tileSelected");
+			cross = Content.Load<Texture2D>("cross");
 			player = Content.Load<Texture2D>("player");
 			stunned = Content.Load<Texture2D>("stunned");
 			powerUp = Content.Load<Texture2D>("powerUp");
@@ -126,6 +128,20 @@ namespace PaintBot
 				if (mouseState.LeftButton == ButtonState.Released && lastMouseState?.LeftButton != ButtonState.Released)
 				{
 					paintBot.OverrideTarget = mouseCoordinate;
+				}
+
+				if (mouseCoordinate is not null &&
+					mouseState.MiddleButton == ButtonState.Released &&
+					lastMouseState?.MiddleButton != ButtonState.Released)
+				{
+					if (paintBot.Disallowed.Contains(mouseCoordinate))
+					{
+						paintBot.Disallowed.Remove(mouseCoordinate);
+					}
+					else
+					{
+						paintBot.Disallowed.Add(mouseCoordinate);
+					}
 				}
 
 				if (keyboardState.IsKeyDown(Keys.Space) && lastKeyboardState?.IsKeyDown(Keys.Space) != true)
@@ -366,6 +382,19 @@ namespace PaintBot
 						0.0f
 					);
 				}
+			}
+			foreach (MapCoordinate coordinate in paintBot.Disallowed)
+			{
+				spriteBatch.Draw(
+					cross,
+					new Rectangle(
+						(int)Math.Round(offset.x + coordinate.X * size),
+						(int)Math.Round(offset.y + coordinate.Y * size),
+						sizeI,
+						sizeI
+					),
+					Color.Red
+				);
 			}
 		}
 
