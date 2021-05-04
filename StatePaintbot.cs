@@ -34,14 +34,16 @@ namespace PaintBot
 			}
 		}
 
-		private MapCoordinate[] obstacleCoordinates = null;
-		public MapCoordinate[] ObstacleCoordinates
+		private HashSet<MapCoordinate> obstacleCoordinates = null;
+		public HashSet<MapCoordinate> ObstacleCoordinates
 		{
 			get
 			{
 				if (obstacleCoordinates is null)
 				{
-					obstacleCoordinates = MapUtils.GetObstacleCoordinates();
+					obstacleCoordinates = Map.ObstaclePositions
+						.Select(MapUtils.GetCoordinateFrom)
+						.ToHashSet();
 				}
 				return obstacleCoordinates;
 			}
