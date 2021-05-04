@@ -31,6 +31,7 @@
 
 		public event System.Action<GameStarting> GameStartingEvent;
 		public event System.Action<MapUpdated> MapUpdatedEvent;
+		public event System.Action<long> TimingEvent;
 
 
 		protected PaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender heartBeatSender, ILogger logger)
@@ -130,6 +131,7 @@
 			{
 				stopwatch.Stop();
 				int additionalWaitTime = (int)Math.Round(GameSettings.TimeInMsPerTick * 0.55f - stopwatch.ElapsedMilliseconds);
+				TimingEvent?.Invoke(stopwatch.ElapsedMilliseconds);
 				if (additionalWaitTime > 0)
 				{
 					await Task.Delay(additionalWaitTime, ct);

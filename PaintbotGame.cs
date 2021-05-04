@@ -53,6 +53,7 @@ namespace PaintBot
 		private GameSettings gameSettings;
 		private Map map;
 		private MapUtils mapUtils;
+		private long tickTime = 0;
 
 		public PaintBotGame(StatePaintBot paintBot)
 		{
@@ -78,6 +79,7 @@ namespace PaintBot
 			cancellationTokenSource = new CancellationTokenSource();
 			paintBot.GameStartingEvent += OnGameStarting;
 			paintBot.MapUpdatedEvent += OnMapUpdated;
+			paintBot.TimingEvent += OnTime;
 			paintBotTask = paintBot.Run(cancellationTokenSource.Token);
 
 			base.LoadContent();
@@ -104,6 +106,8 @@ namespace PaintBot
 			map = mapUpdated.Map;
 			mapUtils = new MapUtils(map);
 		}
+
+		private void OnTime(long time) => tickTime = time;
 
 		protected override void Update(GameTime gameTime)
 		{
@@ -161,7 +165,11 @@ namespace PaintBot
 
 		private void DrawUI(GameTime gameTime)
 		{
-			uiWidth = 0;
+			const string timingLabel = "Tick time:";
+			string timingString = $"{tickTime} ms";
+			float timingStringWidth = cascadiaMono.MeasureString(timingString).X;
+
+			uiWidth = (int)Math.Ceiling(cascadiaMono.MeasureString(timingLabel).X);
 			IDictionary<string, float> characterPointsWidth = new Dictionary<string, float>();
 			foreach (CharacterInfo ci in map.CharacterInfos)
 			{
@@ -209,6 +217,25 @@ namespace PaintBot
 			}
 
 			uiWidth += uiSpacing * 2;
+
+			spriteBatch.DrawString(
+				cascadiaMono,
+				timingLabel,
+				new Vector2(
+					uiSpacing * 2,
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing * 2 + uiSpacing)
+				),
+				Color.White
+			);
+			spriteBatch.DrawString(
+				cascadiaMono,
+				timingString,
+				new Vector2(
+					uiWidth - uiSpacing * 2 - timingStringWidth,
+					GraphicsDevice.Viewport.Height - (cascadiaMono.LineSpacing + uiSpacing)
+				),
+				Color.White
+			);
 		}
 
 		private void DrawArena(GameTime gameTime)
@@ -368,6 +395,7 @@ namespace PaintBot
 			cancellationTokenSource.Cancel();
 			paintBot.GameStartingEvent -= OnGameStarting;
 			paintBot.MapUpdatedEvent -= OnMapUpdated;
+			paintBot.TimingEvent -= OnTime;
 			paintBotTask.Dispose();
 
 			base.UnloadContent();
