@@ -97,8 +97,8 @@ namespace PaintBot
 		}
 
 		private long enemyCoordinatesCache = -1;
-		private MapCoordinate[] enemyCoordinates = null;
-		protected MapCoordinate[] EnemyCoordinates
+		private HashSet<MapCoordinate> enemyCoordinates = null;
+		protected HashSet<MapCoordinate> EnemyCoordinates
 		{
 			get
 			{
@@ -107,7 +107,7 @@ namespace PaintBot
 					enemyCoordinates = Map.CharacterInfos
 						.Where(ci => ci.Id != PlayerId)
 						.Select(ci => MapUtils.GetCoordinateFrom(ci.Position))
-						.ToArray();
+						.ToHashSet();
 					enemyCoordinatesCache = Map.WorldTick;
 				}
 				return enemyCoordinates;
