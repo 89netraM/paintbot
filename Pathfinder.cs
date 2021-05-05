@@ -46,7 +46,7 @@ namespace PaintBot
 						!IsTooCloseToOther(paintBot, to) &&
 						(wasInRangeOfOther || !IsInRangeOfOther(paintBot, to)))
 					{
-						float cost = 1.0f - paintBot.CalculatePointsAt(to) / 4.0f + 0.25f;
+						float cost = 1.0f - paintBot.CalculatePointsAt(to) / 8.0f + 0.125f;
 						Path path = new Path(firstStep != Action.Stay ? firstStep : direction, to, length + 1);
 						if (condition.Invoke(to))
 						{
