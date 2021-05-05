@@ -1,6 +1,7 @@
 namespace PaintBot
 {
 	using System.Collections.Generic;
+	using System.Collections.Concurrent;
 	using System.Linq;
 	using Game.Action;
 	using Game.Configuration;
@@ -148,6 +149,7 @@ namespace PaintBot
 		}
 
 		private Dictionary<MapCoordinate, TileOwner> pointsAtCoordinate = null;
+		private ConcurrentDictionary<MapCoordinate, int> calculatedPointsAtCoordinate = null;
 		public IReadOnlyDictionary<MapCoordinate, TileOwner> PointsAtCoordinate => pointsAtCoordinate;
 
 		public MapCoordinate OverrideTarget { get; set; } = null;
@@ -213,6 +215,7 @@ namespace PaintBot
 		{
 			if (pointsAtCoordinate is null)
 			{
+				calculatedPointsAtCoordinate = new ConcurrentDictionary<MapCoordinate, int>(8 /* My logical CPU count */, Map.Width * Map.Height);
 				pointsAtCoordinate = new Dictionary<MapCoordinate, TileOwner>(Map.Width * Map.Height);
 				// Empty coordinates
 				for (int y = 0; y < Map.Height; y++)
@@ -235,6 +238,7 @@ namespace PaintBot
 			}
 			else
 			{
+				calculatedPointsAtCoordinate.Clear();
 				// Coloured by the player (old playerCoordinate!)
 				pointsAtCoordinate[playerCoordinate].Type = TileType.Owned;
 				// Coloured by an enemy (old enemyCoordinates!)
@@ -308,17 +312,19 @@ namespace PaintBot
 				.Sum(CalculatePointsAt);
 		public int CalculatePointsAt(MapCoordinate coordinate)
 		{
-			TileOwner tile = PointsAtCoordinate[coordinate];
-			switch (tile.Type)
+			int points;
+			if (!calculatedPointsAtCoordinate.TryGetValue(coordinate, out points))
 			{
-				default:
-				case TileType.Empty:
-					return GameSettings.PointsPerTileOwned;
-				case TileType.Owned:
-					return PlayerId == tile.Owner ? 0 : GameSettings.PointsPerTileOwned * (Leaders.Contains(tile.Owner) ? 2 : 1);
-				case TileType.Occupied:
-					return GameSettings.PointsPerCausedStun;
+				TileOwner tile = PointsAtCoordinate[coordinate];
+				points = tile.Type switch
+				{
+					TileType.Owned => PlayerId == tile.Owner ? 0 : GameSettings.PointsPerTileOwned * (Leaders.Contains(tile.Owner) ? 2 : 1),
+					TileType.Occupied => GameSettings.PointsPerCausedStun,
+					TileType.Empty or _ => GameSettings.PointsPerTileOwned,
+				};
+				calculatedPointsAtCoordinate[coordinate] = points;
 			}
+			return points;
 		}
 	}
 }
