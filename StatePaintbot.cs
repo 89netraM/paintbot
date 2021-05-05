@@ -114,6 +114,24 @@ namespace PaintBot
 			}
 		}
 
+		private long leadersCache = -1;
+		private HashSet<string> leaders = null;
+		protected HashSet<string> Leaders
+		{
+			get
+			{
+				if (leadersCache != Map.WorldTick)
+				{
+					leaders = Map.CharacterInfos
+						.Where(ci => ci.Id != PlayerId && ci.Points >= PlayerInfo.Points)
+						.Select(ci => ci.Id)
+						.ToHashSet();
+					leadersCache = Map.WorldTick;
+				}
+				return leaders;
+			}
+		}
+
 		private Dictionary<MapCoordinate, int> pointsAtCoordinate = null;
 		public IReadOnlyDictionary<MapCoordinate, int> PointsAtCoordinate => pointsAtCoordinate;
 
