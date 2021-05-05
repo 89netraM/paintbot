@@ -46,24 +46,7 @@ namespace PaintBot
 						!IsTooCloseToOther(paintBot, to) &&
 						(wasInRangeOfOther || !IsInRangeOfOther(paintBot, to)))
 					{
-						float cost = 1.0f;
-						if (paintBot.PlayerColouredCoordinates.Contains(to))
-						{
-							cost += 0.25f;
-						}
-						if (otherColouredCoordinates.Contains(to))
-						{
-							cost -= 0.25f;
-						}
-						if (leaderColouredCoordinates.Contains(to))
-						{
-							cost -= 0.25f;
-						}
-						if (to.X == 0 || to.X == paintBot.Map.Width - 1 ||
-							to.Y == 0 || to.Y == paintBot.Map.Height - 1)
-						{
-							cost += 0.25f;
-						}
+						float cost = 1.0f - paintBot.CalculatePointsAt(to) / 4.0f + 0.25f;
 						Path path = new Path(firstStep != Action.Stay ? firstStep : direction, to, length + 1);
 						if (condition.Invoke(to))
 						{
