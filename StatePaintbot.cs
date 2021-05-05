@@ -10,6 +10,21 @@ namespace PaintBot
 	using Messaging.Response;
 	using Serilog;
 
+	public class TileOwner
+	{
+		public TileType Type { get; set; }
+		public string Owner { get; set; }
+
+		public TileOwner(TileType type, string owner) =>
+			(Type, Owner) = (type, owner);
+	}
+	public enum TileType
+	{
+		Empty,
+		Owned,
+		Occupied,
+	}
+
 	public abstract class StatePaintBot : PaintBot
 	{
 		public System.Random Random { get; }
@@ -132,8 +147,8 @@ namespace PaintBot
 			}
 		}
 
-		private Dictionary<MapCoordinate, int> pointsAtCoordinate = null;
-		public IReadOnlyDictionary<MapCoordinate, int> PointsAtCoordinate => pointsAtCoordinate;
+		private Dictionary<MapCoordinate, TileOwner> pointsAtCoordinate = null;
+		public IReadOnlyDictionary<MapCoordinate, TileOwner> PointsAtCoordinate => pointsAtCoordinate;
 
 		public MapCoordinate OverrideTarget { get; set; } = null;
 		public ISet<MapCoordinate> Disallowed { get; } = new HashSet<MapCoordinate>();
@@ -198,8 +213,8 @@ namespace PaintBot
 		{
 			if (pointsAtCoordinate is null)
 			{
-				pointsAtCoordinate = new Dictionary<MapCoordinate, int>(Map.Width * Map.Height);
-				// Standard points for empty coordinates
+				pointsAtCoordinate = new Dictionary<MapCoordinate, TileOwner>(Map.Width * Map.Height);
+				// Empty coordinates
 				for (int y = 0; y < Map.Height; y++)
 				{
 					for (int x = 0; x < Map.Width; x++)
@@ -207,47 +222,50 @@ namespace PaintBot
 						MapCoordinate coordinate = new MapCoordinate(x, y);
 						if (!ObstacleCoordinates.Contains(coordinate))
 						{
-							pointsAtCoordinate.Add(coordinate, GameSettings.PointsPerTileOwned);
+							pointsAtCoordinate.Add(coordinate, new TileOwner(TileType.Empty, null));
 						}
 					}
 				}
-				// Zero points for player coordinate
-				pointsAtCoordinate[PlayerCoordinate] = 0;
-				// Stun points for enemy coordinates
-				foreach (MapCoordinate coordinate in EnemyCoordinates)
+				// Character coordinates
+				foreach (CharacterInfo ci in Map.CharacterInfos)
 				{
-					pointsAtCoordinate[coordinate] = GameSettings.PointsPerCausedStun;
+					pointsAtCoordinate[MapUtils.GetCoordinateFrom(ci.Position)] = new TileOwner(TileType.Occupied, ci.Id);
 				}
+				_ = EnemyCoordinates;
 			}
 			else
 			{
 				// Coloured by the player (old playerCoordinate!)
-				pointsAtCoordinate[playerCoordinate] = 0;
+				pointsAtCoordinate[playerCoordinate].Type = TileType.Owned;
 				// Coloured by an enemy (old enemyCoordinates!)
 				foreach (MapCoordinate coordinate in enemyCoordinates)
 				{
-					pointsAtCoordinate[coordinate] = GameSettings.PointsPerTileOwned * 2;
+					pointsAtCoordinate[coordinate].Type = TileType.Owned;
 				}
 				// Coloured by explosion
 				foreach (ExplosionInfo explosionInfo in Map.ExplosionInfos)
 				{
 					MapCoordinate coordinate = MapUtils.GetCoordinateFrom(explosionInfo.Position);
-					if (!explosionInfo.Exploders.Contains(PlayerId) ||
-						!PlayerColouredCoordinates.Contains(coordinate))
+					if (pointsAtCoordinate.GetValueOrDefault(coordinate) is TileOwner tile)
 					{
-						pointsAtCoordinate[coordinate] = GameSettings.PointsPerTileOwned * 2;
-					}
-					else
-					{
-						pointsAtCoordinate[coordinate] = 0;
+						tile.Type = TileType.Owned;
+						if (explosionInfo.Exploders.Length == 1)
+						{
+							tile.Owner = explosionInfo.Exploders[0];
+						}
+						else
+						{
+							int position = MapUtils.GetPositionFrom(coordinate);
+							tile.Owner = explosionInfo.Exploders.First(id => MapUtils.GetCharacterInfoFor(id).ColouredPositions.Contains(position));
+						}
 					}
 				}
-				// Player coordinate (new playerCoordinate!)
-				pointsAtCoordinate[PlayerCoordinate] = 0;
-				// Enemy coordinate (new enemyCoordinates!)
-				foreach (MapCoordinate coordinate in EnemyCoordinates)
+				// Charcater coordinate
+				foreach (CharacterInfo ci in Map.CharacterInfos)
 				{
-					pointsAtCoordinate[coordinate] = GameSettings.PointsPerCausedStun;
+					TileOwner tile = pointsAtCoordinate[MapUtils.GetCoordinateFrom(ci.Position)];
+					tile.Type = TileType.Occupied;
+					tile.Owner = ci.Id;
 				}
 			}
 		}
@@ -285,6 +303,20 @@ namespace PaintBot
 		public int PointsForUseOfPowerUp(int range) => PointsForUseOfPowerUp(PlayerCoordinate, range);
 		public int PointsForUseOfPowerUp(MapCoordinate center, int range) =>
 			CoordinatesInManhattanRange(center, range)
-				.Sum(PointsAtCoordinate.GetValueOrDefault);
+				.Sum(CalculatePointsAt);
+		public int CalculatePointsAt(MapCoordinate coordinate)
+		{
+			TileOwner tile = PointsAtCoordinate[coordinate];
+			switch (tile.Type)
+			{
+				default:
+				case TileType.Empty:
+					return GameSettings.PointsPerTileOwned;
+				case TileType.Owned:
+					return PlayerId == tile.Owner ? 0 : GameSettings.PointsPerTileOwned * (Leaders.Contains(tile.Owner) ? 2 : 1);
+				case TileType.Occupied:
+					return GameSettings.PointsPerCausedStun;
+			}
+		}
 	}
 }
