@@ -196,7 +196,7 @@ namespace PaintBot
 			if (OverrideTarget is not null)
 			{
 				Path path = Pathfinder.FindPath(this, OverrideTarget.Equals);
-				if (path is not null)
+				if (path is not null && path.FirstStep != Action.Stay)
 				{
 					return path.FirstStep;
 				}
