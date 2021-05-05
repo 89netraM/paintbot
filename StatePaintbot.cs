@@ -246,7 +246,9 @@ namespace PaintBot
 				foreach (ExplosionInfo explosionInfo in Map.ExplosionInfos)
 				{
 					MapCoordinate coordinate = MapUtils.GetCoordinateFrom(explosionInfo.Position);
-					if (pointsAtCoordinate.GetValueOrDefault(coordinate) is TileOwner tile)
+					if (!PlayerCoordinate.Equals(coordinate) &&
+						!EnemyCoordinates.Contains(coordinate) &&
+						pointsAtCoordinate.GetValueOrDefault(coordinate) is TileOwner tile)
 					{
 						tile.Type = TileType.Owned;
 						if (explosionInfo.Exploders.Length == 1)
