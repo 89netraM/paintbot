@@ -184,7 +184,7 @@
 			return Task.CompletedTask;
 		}
 
-		private Task OnGameEnded(GameEnded response)
+		protected virtual Task OnGameEnded(GameEnded response)
 		{
 			_hasGameEnded = true;
 			if (GameMode == GameMode.Training)

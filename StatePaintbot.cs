@@ -10,6 +10,7 @@ namespace PaintBot
 	using Messaging.Request.HeartBeat;
 	using Messaging.Response;
 	using Serilog;
+	using System.Threading.Tasks;
 
 	public class TileOwner
 	{
@@ -209,6 +210,30 @@ namespace PaintBot
 			}
 
 			return null;
+		}
+
+		protected override Task OnGameEnded(GameEnded response)
+		{
+			totalGameTicks = null;
+			obstacleCoordinates = null;
+			playerInfoCache = -1;
+			playerInfo = null;
+			playerCoordinateCache = -1;
+			playerCoordinate = null;
+			playerColouredCoordinatesCache = -1;
+			playerColouredCoordinates = null;
+			enemyCoordinatesCache = -1;
+			enemyCoordinates = null;
+			leadersCache = -1;
+			leaders = null;
+			pointsAtCoordinate = null;
+			calculatedPointsAtCoordinate = null;
+			OverrideTarget = null;
+			Disallowed.Clear();
+			ForceExplode = false;
+			currentActionSequence = null;
+
+			return base.OnGameEnded(response);
 		}
 
 		private void UpdatePointsDictionary()
