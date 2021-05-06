@@ -160,6 +160,11 @@ namespace PaintBot
 				{
 					paintBot.ForceExplode = true;
 				}
+
+				if (keyboardState.IsKeyDown(Keys.Escape) && lastKeyboardState?.IsKeyDown(Keys.Escape) != true)
+				{
+					paintBot.Disallowed.Clear();
+				}
 			}
 
 			lastMouseState = mouseState;
