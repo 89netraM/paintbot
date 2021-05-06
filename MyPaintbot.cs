@@ -10,47 +10,10 @@
 	using Messaging.Response;
 	using Serilog;
 
+	public record TargetInfo(MapCoordinate PointsCoordinate, int Points, Path PointsPath, Path PowerUpPath);
+
 	public class MyPaintBot : StatePaintBot
 	{
-		public int? DistanceToEnemy { get; private set; } = null;
-		public int IsLosingEnemy { get; private set; } = 0;
-
-		private long closestEnemyPathCache = -1;
-		private Path closestEnemyPath = null;
-		public Path ClosestEnemyPath
-		{
-			get
-			{
-				if (closestEnemyPathCache != Map.WorldTick)
-				{
-					closestEnemyPath = Pathfinder.FindPath(
-						this,
-						c => EnemyCoordinates.Any(ec => c.GetManhattanDistanceTo(ec) < GameSettings.ExplosionRange)
-					);
-					closestEnemyPathCache = Map.WorldTick;
-				}
-				return closestEnemyPath;
-			}
-		}
-
-		private long closestPowerUpPathCache = -1;
-		private Path closestPowerUpPath = null;
-		public Path ClosestPowerUpPath
-		{
-			get
-			{
-				if (closestPowerUpPathCache != Map.WorldTick)
-				{
-					closestPowerUpPath = Pathfinder.FindPath(
-						this,
-						c => Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(c))
-					);
-					closestPowerUpPathCache = Map.WorldTick;
-				}
-				return closestPowerUpPath;
-			}
-		}
-
 		public MyPaintBot(PaintBotConfig paintBotConfig, IPaintBotClient paintBotClient, IHearBeatSender hearBeatSender, ILogger logger) :
 			base(paintBotConfig, paintBotClient, hearBeatSender, logger)
 		{
@@ -62,78 +25,128 @@
 
 		public override string Name { get; }
 
-		protected override IEnumerable<Action> GetActionSequence()
+		protected override IEnumerable<Action> GetActionSequence() =>
+			GetPreliminaryActionSequence()
+				// Always explode on the last tick if possible
+				.Select(a => PlayerInfo.CarryingPowerUp && Map.WorldTick == TotalGameTicks - 2 ? Action.Explode : a)
+				// Explode if chased
+				.Select(a =>
+					PlayerInfo.CarryingPowerUp &&
+					Map.CharacterInfos.Any(ci =>
+						ci.Id != PlayerId &&
+						ci.CarryingPowerUp &&
+						ci.StunnedForGameTicks == 0 &&
+						PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) <=
+							GameSettings.ExplosionRange
+					) ? Action.Explode : a
+				)
+				// Never do nothing
+				.Select(pa => pa is Action a ? a : GetRandomAction());
+
+		private Action GetRandomAction()
+		{
+			int leftBorder = Map.Width / 4;
+			int rightBorder = Map.Width - leftBorder;
+			int topBorder = Map.Height / 4;
+			int bottomBorder = Map.Height - topBorder;
+			return Pathfinder.FindPath(
+				this,
+				c =>
+					// Never target already owned tiles
+					!PlayerColouredCoordinates.Contains(c) &&
+					// Prefer setping to the center
+					leftBorder <= c.X && c.X <= rightBorder && topBorder <= c.Y && c.Y <= bottomBorder &&
+					// Makes it prefer steping on others colours
+					PlayerCoordinate.GetManhattanDistanceTo(c) >= 2 &&
+					// Don't move into dead-ends
+					CountCloseNonPlayerColoured(c, 1) >= 2
+			)?.FirstStep ?? Action.Stay;
+		}
+
+		private IEnumerable<Action?> GetPreliminaryActionSequence()
 		{
 			while (true)
 			{
-				if (PlayerInfo.CarryingPowerUp)
+				// Find the closest power-up
+				while (!PlayerInfo.CarryingPowerUp)
 				{
-					if (ShouldExplode())
+					if (Map.PowerUpPositions.Length != 0 &&
+						Pathfinder.FindPath(this, IsPowerUp) is Path p)
 					{
-						yield return Action.Explode;
-						DistanceToEnemy = null;
-						IsLosingEnemy = 0;
-						continue;
+						yield return p.FirstStep;
 					}
 					else
 					{
-						Path enemyPath = ClosestEnemyPath;
-						if (enemyPath is not null)
-						{
-							if (DistanceToEnemy.HasValue && DistanceToEnemy.Value <= enemyPath.Length)
-							{
-								IsLosingEnemy++;
-							}
-							else
-							{
-								IsLosingEnemy = 0;
-							}
-							DistanceToEnemy = enemyPath.Length;
-							yield return enemyPath.FirstStep;
-							continue;
-						}
+						yield return null;
 					}
 				}
-
-				Path powerUpPath = ClosestPowerUpPath;
-				if (powerUpPath is not null)
+				// Find a nearby "explosion point" and a path to the next power-up
+				TargetInfo target = FindTarget();
+				Path toPoints = target.PointsPath;
+				while (PlayerInfo.CarryingPowerUp)
 				{
-					yield return powerUpPath.FirstStep;
+					if (toPoints?.Coordinates.Count == 0)
+					{
+						yield return Action.Explode;
+						break;
+					}
+					else
+					{
+						yield return toPoints?.FirstStep;
+					}
+					if (IsTargetOccupied(target.PointsCoordinate))
+					{
+						target = FindTarget();
+					}
+					toPoints = Pathfinder.FindPath(this, target.PointsCoordinate.Equals);
+				}
+			}
+		}
+
+		private bool IsPowerUp(MapCoordinate coordinate) =>
+			Map.PowerUpPositions.Contains(MapUtils.GetPositionFrom(coordinate));
+
+		private bool IsTargetOccupied(MapCoordinate coordinate) =>
+			Map.CharacterInfos.Any(ci =>
+			{
+				if (ci.Id == PlayerId)
+				{
+					return false;
+				}
+				MapCoordinate characterCoordinate = MapUtils.GetCoordinateFrom(ci.Position);
+				if (ci.StunnedForGameTicks > 0 && characterCoordinate.GetManhattanDistanceTo(coordinate) <= 1)
+				{
+					return true;
+				}
+				else if (ci.CarryingPowerUp && characterCoordinate.GetManhattanDistanceTo(coordinate) < GameSettings.ExplosionRange)
+				{
+					return true;
 				}
 				else
 				{
-					yield return GetRandomDirection();
+					return false;
 				}
-			}
-		}
+			});
 
-		private bool ShouldExplode() =>
-			Map.WorldTick == TotalGameTicks - 2 ||
-			(IsLosingEnemy >= 10 &&
-				PointsForUseOfPowerUp() >= (GameSettings.ExplosionRange + 1.0) * (GameSettings.ExplosionRange * 0.5) * 4 / 2
-			) ||
-			ClosestPowerUpPath?.Length <= 2 ||
-			Map.CharacterInfos.Any(ci =>
-				ci.Id != PlayerId &&
-				PlayerCoordinate.GetManhattanDistanceTo(MapUtils.GetCoordinateFrom(ci.Position)) < GameSettings.ExplosionRange
+		private TargetInfo FindTarget() =>
+			CoordinatesInManhattanRange(GameSettings.ExplosionRange * 2)
+				.AsParallel()
+				.Select(CalculateCoordinate)
+				.Where(TargetInfoIsValid)
+				.Aggregate(AggregateHighestPointsperStep);
+		private TargetInfo CalculateCoordinate(MapCoordinate coordinate) =>
+			new TargetInfo(
+				coordinate,
+				PointsForUseOfPowerUp(coordinate, GameSettings.ExplosionRange),
+				Pathfinder.FindPath(this, coordinate.Equals),
+				Pathfinder.FindPath(this, coordinate, IsPowerUp)
 			);
-
-		private Action GetRandomDirection()
-		{
-			// Go towards the closest coordinate not coloured by this player
-			Path path = Pathfinder.FindPath(
-				this,
-				c => !PlayerColouredCoordinates.Contains(c) &&
-					CountCloseNonPlayerColoured(c, 1) >= 2
-			);
-			if (path is not null)
-			{
-				return path.FirstStep;
-			}
-			else
-			{
-				return Action.Stay;
-			}
-		}
+		private static bool TargetInfoIsValid(TargetInfo targetInfo) =>
+			targetInfo.PointsPath is not null &&
+			targetInfo.PointsPath.Coordinates.All(c => !c.Equals(targetInfo.PowerUpPath?.Target));
+		private static TargetInfo AggregateHighestPointsperStep(TargetInfo accumulated, TargetInfo targetInfo) =>
+			accumulated.Points / (float)(accumulated.PointsPath.Coordinates.Count + (accumulated.PowerUpPath?.Coordinates.Count ?? 0.0f)) <
+				targetInfo.Points / (float)(targetInfo.PointsPath.Coordinates.Count + (targetInfo.PowerUpPath?.Coordinates.Count ?? 0.0f)) ?
+					targetInfo : accumulated;
 	}
 }
