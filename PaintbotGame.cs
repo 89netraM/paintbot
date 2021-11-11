@@ -220,6 +220,7 @@ namespace PaintBot
 			IDictionary<string, float> characterPointsWidth = new Dictionary<string, float>();
 			foreach (CharacterInfo ci in map.CharacterInfos)
 			{
+				ci.Name = ci.Name.Substring(0, Math.Min(ci.Name.Length, 20));
 				uiWidth = Math.Max((int)Math.Ceiling(cascadiaMono.MeasureString($"{ci.Name}:").X), uiWidth);
 				Vector2 pointsSize = cascadiaMono.MeasureString(ci.Points.ToString());
 				uiWidth = Math.Max((int)Math.Ceiling(pointsSize.X), uiWidth);
